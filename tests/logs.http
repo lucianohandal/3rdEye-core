@@ -1,0 +1,48 @@
+# Test your FastAPI endpoints
+
+###
+
+POST http://127.0.0.1:8000/v1/logs
+Accept: application/json
+Content-Type: application/json
+
+[
+  {
+    "level": "INFO",
+    "message": "User logged in",
+    "service": "api",
+    "environment": "local",
+    "version": "0.1.0",
+    "git_sha": "local-dev",
+    "attributes": {
+      "route": "/login",
+      "method": "POST"
+    }
+  }
+]
+
+> {%
+    client.test("log request returns success", function () {
+        client.assert(response.status === 202, "Expected 202 accepted, got " + response.status);
+    });
+
+    client.test("log request returns processed count", function () {
+        client.assert(response.body.processed_count === 1, "Expected processed_count to be 1");
+    });
+%}
+
+###
+
+POST http://127.0.0.1:8000/v1/logs
+Accept: application/json
+Content-Type: application/json
+
+[]
+
+> {%
+    client.test("empty logs request returns no content", function () {
+        client.assert(response.status === 204, "Expected 204 No Content, got " + response.status);
+    });
+%}
+
+###

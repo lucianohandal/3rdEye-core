@@ -10,10 +10,19 @@ Content-Type: application/json
   {
     "level": "INFO",
     "message": "User logged in",
+    "timestamp": "2026-06-08T19:07:36.123456+00:00",
     "service": "api",
     "environment": "local",
     "version": "0.1.0",
     "git_sha": "local-dev",
+    "trace_id": "trace-local-001",
+    "span_id": "span-local-001",
+    "request_id": "request-local-001",
+    "user_id": "user-local-001",
+    "file": "auth.py",
+    "line": 42,
+    "function": "login",
+    "stack": "Traceback placeholder",
     "attributes": {
       "route": "/login",
       "method": "POST"

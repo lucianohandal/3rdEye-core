@@ -17,6 +17,13 @@ def _parse_timestamp(timestamp: str) -> datetime:
     return parsed
 
 
+def _attributes_for_storage(log: LogEventDTO) -> dict:
+    attributes = dict(log.attributes)
+    attributes["args"] = log.args
+    attributes["template"] = log.template
+    return attributes
+
+
 class RawLogDB:
     async def insert_many(
         self,
@@ -47,7 +54,7 @@ class RawLogDB:
                 log.line,
                 log.function,
                 log.stack,
-                json.dumps(log.attributes),
+                json.dumps(_attributes_for_storage(log)),
             )
             for log in logs
         ]

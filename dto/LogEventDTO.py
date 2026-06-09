@@ -7,6 +7,8 @@ from dto.LogLevel import LogLevel
 class LogEventDTO(BaseModel):
     level: LogLevel
     message: str = Field(min_length=1, max_length=10_000)
+    args: list[Any]
+    template: str = Field(min_length=1, max_length=10_000)
     timestamp: str = Field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )

@@ -10,6 +10,8 @@ Content-Type: application/json
   {
     "level": "INFO",
     "message": "User logged in",
+    "args": ["user-local-001"],
+    "template": "User {user_id} logged in",
     "timestamp": "2026-06-08T19:07:36.123456+00:00",
     "service": "api",
     "environment": "local",

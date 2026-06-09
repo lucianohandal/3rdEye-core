@@ -6,15 +6,10 @@ from dto.LogEventDTO import LogEventDTO
 from db.postgres import get_pool
 
 
-def _parse_timestamp(timestamp: str) -> datetime:
-    normalized = timestamp
-    if normalized.endswith("Z"):
-        normalized = f"{normalized[:-1]}+00:00"
-
-    parsed = datetime.fromisoformat(normalized)
-    if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
-    return parsed
+def _timestamp_for_storage(timestamp: datetime) -> datetime:
+    if timestamp.tzinfo is None:
+        return timestamp.replace(tzinfo=timezone.utc)
+    return timestamp
 
 
 def _attributes_for_storage(log: LogEventDTO) -> dict:
@@ -39,7 +34,7 @@ class RawLogDB:
                 str(uuid4()),
                 project_id,
                 api_key_id,
-                _parse_timestamp(log.timestamp),
+                _timestamp_for_storage(log.timestamp),
                 log.level.value,
                 log.message,
                 log.service,

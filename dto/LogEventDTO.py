@@ -26,10 +26,10 @@ class LogEventDTO(BaseModel):
     # Source Metadata
     file: str | None = Field(default=None, max_length=1_000)
     line: int | None = Field(default=None, ge=1)
-    function: str | None = Field(default=None, max_length=255)
+    method: str | None = Field(default=None, max_length=255)
     stack: str | None = None
 
     # Custom Metadata
-    attributes: dict[str, Any] = Field(default_factory=dict)
+    attributes: dict[str, str] = Field(default_factory=dict)
 
     model_config = ConfigDict(extra="forbid")

@@ -1,0 +1,115 @@
+{
+  "rules": [
+    {
+      "id": "fatal_logs_present",
+      "window": "5m",
+      "metric": "log_count",
+      "filter": {
+        "level": "FATAL"
+      },
+      "condition": {
+        "type": "threshold",
+        "operator": ">",
+        "value": 0
+      },
+      "severity": "critical",
+      "description": "Any fatal log in a five-minute window should be investigated."
+    },
+    {
+      "id": "error_logs_unusually_high",
+      "window": "5m",
+      "metric": "log_count",
+      "filter": {
+        "level": "ERROR"
+      },
+      "condition": {
+        "type": "anomaly",
+        "method": "seasonal_baseline",
+        "sensitivity": "medium",
+        "min_percent_change": 0.25
+      },
+      "severity": "high",
+      "description": "Error count is high compared with the baseline for this time slot."
+    },
+    {
+      "id": "warn_logs_unusually_high",
+      "window": "5m",
+      "metric": "log_count",
+      "filter": {
+        "level": "WARN"
+      },
+      "condition": {
+        "type": "anomaly",
+        "method": "seasonal_baseline",
+        "sensitivity": "medium",
+        "min_percent_change": 0.25
+      },
+      "severity": "medium",
+      "description": "Warning count is high compared with the baseline for this time slot."
+    },
+    {
+      "id": "total_volume_unusual_change",
+      "window": "30m",
+      "metric": "total_log_count",
+      "condition": {
+        "type": "anomaly",
+        "method": "seasonal_baseline",
+        "sensitivity": "medium",
+        "min_percent_change": 0.30
+      },
+      "severity": "medium",
+      "metadata": {
+        "compare_to": [
+          "same_time_previous_days",
+          "same_weekday_previous_weeks"
+        ]
+      }
+    },
+    {
+      "id": "template_distribution_unusual_change",
+      "window": "30m",
+      "metric": "template_distribution",
+      "condition": {
+        "type": "distribution_shift",
+        "method": "seasonal_baseline",
+        "sensitivity": "medium"
+      },
+      "severity": "medium",
+      "metadata": {
+        "compare_to": [
+          "same_time_previous_days",
+          "same_weekday_previous_weeks"
+        ]
+      }
+    },
+    {
+      "id": "level_distribution_unusual_change",
+      "window": "30m",
+      "metric": "level_distribution",
+      "condition": {
+        "type": "distribution_shift",
+        "method": "seasonal_baseline",
+        "sensitivity": "medium"
+      },
+      "severity": "medium",
+      "metadata": {
+        "compare_to": [
+          "same_time_previous_days",
+          "same_weekday_previous_weeks"
+        ]
+      }
+    },
+    {
+      "id": "missing_expected_logs",
+      "window": "3h",
+      "metric": "template_presence",
+      "condition": {
+        "type": "missing_expected_pattern",
+        "schedule": "business_days",
+        "min_historical_occurrences": 5
+      },
+      "severity": "high",
+      "description": "A template that normally appears during this business-day slot is missing."
+    }
+  ]
+}

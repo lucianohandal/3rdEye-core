@@ -24,12 +24,12 @@ class LogSignatureDB:
             WHERE file IS NOT DISTINCT FROM $1
               AND method IS NOT DISTINCT FROM $2
               AND stack IS NOT DISTINCT FROM $3
-              AND project_id IS NOT DISTINCT FROM $2
+              AND project_id IS NOT DISTINCT FROM $4
             """,
             log.file,
             log.method,
             log.stack,
-            self.project_id
+            self.project_id,
         )
 
         if len(rows) == 1:

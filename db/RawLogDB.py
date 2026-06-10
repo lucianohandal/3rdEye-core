@@ -47,7 +47,7 @@ class RawLogDB:
 
             await conn.executemany(
                 """
-                INSERT INTO raw_logs (
+                INSERT INTO RawLogs (
                     id,
                     project_id,
                     signature_id,
@@ -62,11 +62,16 @@ class RawLogDB:
                     span_id,
                     request_id,
                     user_id,
+                    file,
+                    line,
+                    method,
+                    stack,
                     attributes
                 )
                 VALUES (
                     $1, $2, $3, $4, $5, $6, $7, $8,
-                    $9, $10, $11, $12, $13, $14, $15
+                    $9, $10, $11, $12, $13, $14, $15, $16,
+                    $17, $18, $19
                 )
                 """,
                 values,

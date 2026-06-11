@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Response, status
 
 from db.RawLogDB import RawLogDB
-from dto.LogEventDTO import LogEventDTO
+from util.dto.LogEventDTO import LogEventDTO
 
 router = APIRouter()
 

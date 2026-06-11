@@ -2,9 +2,9 @@ from uuid import uuid4
 
 import asyncpg
 
-from dto.LogEventDTO import LogEventDTO
+from util.dto.LogEventDTO import LogEventDTO
 from db.postgres import get_pool
-from util.timestamps import timestamp_for_storage
+from util.functions import timestamp_for_storage
 
 
 class LogSignatureDB:

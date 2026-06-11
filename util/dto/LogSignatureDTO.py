@@ -1,11 +1,10 @@
-from dataclasses import dataclass
 from datetime import datetime
+from pydantic import BaseModel
 
-from dto.LogLevel import LogLevel
+from util.Enum.LogLevel import LogLevel
 
 
-@dataclass(frozen=True, slots=True)
-class LogSignatureDTO:
+class LogSignatureDTO(BaseModel):
     id: str
     template: str
     line: int

@@ -1,31 +1,10 @@
 from collections.abc import Iterable
 from math import isfinite
-from operator import eq, ge, gt, le, lt, ne
 
 from analysis.models import AnalysisFinding, BaselineSnapshot
 from analysis.rules import AnalysisRule, RuleCondition
 from util.dto.LogSummaryDTO import LogSummaryDTO
-
-_OPERATORS = {
-    ">": gt,
-    ">=": ge,
-    "<": lt,
-    "<=": le,
-    "==": eq,
-    "!=": ne,
-}
-
-_Z_SCORE_BY_SENSITIVITY = {
-    "low": 3.0,
-    "medium": 2.0,
-    "high": 1.5,
-}
-
-_DISTANCE_BY_SENSITIVITY = {
-    "low": 0.45,
-    "medium": 0.30,
-    "high": 0.20,
-}
+from util.enum.RuleConditionType import RuleConditionType
 
 
 class AnalysisEngine:
@@ -56,15 +35,15 @@ class AnalysisEngine:
     ) -> list[AnalysisFinding]:
         condition = rule.condition
 
-        if condition.type == "threshold":
+        if condition.type == RuleConditionType.THRESHOLD:
             return _as_findings(_evaluate_threshold(rule, snapshot))
-        if condition.type == "anomaly":
+        if condition.type == RuleConditionType.ANOMALY:
             return _as_findings(_evaluate_anomaly(rule, snapshot, baseline))
-        if condition.type == "group_anomaly":
+        if condition.type == RuleConditionType.GROUP_ANOMALY:
             return _evaluate_group_anomaly(rule, snapshot, baseline)
-        if condition.type == "distribution_shift":
+        if condition.type == RuleConditionType.DISTRIBUTION_SHIFT:
             return _as_findings(_evaluate_distribution_shift(rule, snapshot, baseline))
-        if condition.type == "missing_expected_pattern":
+        if condition.type == RuleConditionType.MISSING_EXPECTED_PATTERN:
             return _as_findings(_evaluate_missing_expected_pattern(rule, snapshot, baseline))
 
         raise ValueError(f"Unsupported condition type: {condition.type}")
@@ -73,16 +52,15 @@ class AnalysisEngine:
 def _evaluate_threshold(rule: AnalysisRule, snapshot: LogSummaryDTO) -> AnalysisFinding | None:
     condition = rule.condition
     observed = snapshot.metric_value(rule.metric, rule.filter)
-    operator_fn = _OPERATORS[condition.operator]
 
-    if not operator_fn(observed, condition.value):
+    if not condition.operator.compare(observed, condition.value):
         return None
 
     return AnalysisFinding(
         rule_id=rule.id,
         window=rule.window,
         severity=rule.severity,
-        message=f"{rule.id} matched: observed {observed:g} {condition.operator} {condition.value:g}",
+        message=f"{rule.id} matched: observed {observed:g} {condition.operator.value} {condition.value:g}",
         observed_value=observed,
         expected_value=condition.value,
     )
@@ -197,7 +175,7 @@ def _evaluate_distribution_shift(
         return None
 
     distance = _total_variation_distance(observed, expected)
-    threshold = condition.distance_threshold or _DISTANCE_BY_SENSITIVITY[condition.sensitivity]
+    threshold = condition.distance_threshold or condition.sensitivity.distribution_distance_threshold
     if distance < threshold:
         return None
 
@@ -274,7 +252,7 @@ def _group_filter_name(metric: str) -> str:
 
 
 def _z_score_threshold(condition: RuleCondition) -> float:
-    return condition.z_score_threshold or _Z_SCORE_BY_SENSITIVITY[condition.sensitivity]
+    return condition.z_score_threshold or condition.sensitivity.z_score_threshold
 
 
 def _is_unusual_change(

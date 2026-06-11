@@ -4,22 +4,17 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-
-RuleConditionType = Literal[
-    "threshold",
-    "anomaly",
-    "group_anomaly",
-    "distribution_shift",
-    "missing_expected_pattern",
-]
+from util.enum.Operator import Operator
+from util.enum.RuleConditionType import RuleConditionType
+from util.enum.Sensitivity import Sensitivity
 
 
 class RuleCondition(BaseModel):
     type: RuleConditionType
-    operator: Literal[">", ">=", "<", "<=", "==", "!="] | None = None
+    operator: Operator | None = None
     value: float | None = None
     method: str | None = None
-    sensitivity: Literal["low", "medium", "high"] = "medium"
+    sensitivity: Sensitivity = Sensitivity.MEDIUM
     direction: Literal["up", "down", "both"] = "both"
     z_score_threshold: float | None = Field(default=None, gt=0)
     min_percent_change: float = Field(default=0, ge=0)
@@ -30,7 +25,10 @@ class RuleCondition(BaseModel):
 
     @model_validator(mode="after")
     def validate_condition(self) -> "RuleCondition":
-        if self.type == "threshold" and (self.operator is None or self.value is None):
+        if (
+            self.type == RuleConditionType.THRESHOLD
+            and (self.operator is None or self.value is None)
+        ):
             raise ValueError("threshold conditions require operator and value")
         return self
 

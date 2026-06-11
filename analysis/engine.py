@@ -52,6 +52,9 @@ class AnalysisEngine:
 
 def _evaluate_threshold(rule: AnalysisRule, snapshot: LogSummaryDTO) -> AnalysisFindingDTO | None:
     condition = rule.condition
+    if condition.operator is None or condition.value is None:
+        raise ValueError("threshold conditions require operator and value")
+
     observed = snapshot.metric_value(rule.metric, rule.filter)
 
     if not condition.operator.compare(observed, condition.value):

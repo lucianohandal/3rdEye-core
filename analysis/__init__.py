@@ -1,15 +1,15 @@
 from analysis.engine import AnalysisEngine
 from analysis.models import (
-    AnalysisFinding,
     BaselineSnapshot,
     ExpectedPattern,
     MetricBaseline,
 )
 from analysis.rules import AnalysisRule, load_rules
+from util.dto.AnalysisFindingDTO import AnalysisFindingDTO
 
 __all__ = [
     "AnalysisEngine",
-    "AnalysisFinding",
+    "AnalysisFindingDTO",
     "AnalysisRule",
     "BaselineSnapshot",
     "ExpectedPattern",

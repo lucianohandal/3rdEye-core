@@ -4,9 +4,11 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from util.enum.LogWindow import LogWindow
 from util.enum.Operator import Operator
 from util.enum.RuleConditionType import RuleConditionType
 from util.enum.Sensitivity import Sensitivity
+from util.enum.Severity import Severity
 
 
 class RuleCondition(BaseModel):
@@ -35,11 +37,11 @@ class RuleCondition(BaseModel):
 
 class AnalysisRule(BaseModel):
     id: str = Field(min_length=1)
-    window: str = Field(pattern=r"^\d+[mhd]$")
+    window: LogWindow
     metric: str = Field(min_length=1)
     condition: RuleCondition
     filter: dict[str, Any] = Field(default_factory=dict)
-    severity: Literal["info", "low", "medium", "high", "critical"] = "medium"
+    severity: Severity = Severity.MEDIUM
     enabled: bool = True
     description: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)

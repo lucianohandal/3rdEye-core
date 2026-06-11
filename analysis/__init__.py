@@ -1,6 +1,5 @@
 from analysis.engine import AnalysisEngine
 from analysis.models import (
-    AggregateSnapshot,
     AnalysisFinding,
     BaselineSnapshot,
     ExpectedPattern,
@@ -9,7 +8,6 @@ from analysis.models import (
 from analysis.rules import AnalysisRule, load_rules
 
 __all__ = [
-    "AggregateSnapshot",
     "AnalysisEngine",
     "AnalysisFinding",
     "AnalysisRule",

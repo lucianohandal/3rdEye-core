@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, model_validator
 RuleConditionType = Literal[
     "threshold",
     "anomaly",
+    "group_anomaly",
     "distribution_shift",
     "missing_expected_pattern",
 ]
@@ -19,6 +20,7 @@ class RuleCondition(BaseModel):
     value: float | None = None
     method: str | None = None
     sensitivity: Literal["low", "medium", "high"] = "medium"
+    direction: Literal["up", "down", "both"] = "both"
     z_score_threshold: float | None = Field(default=None, gt=0)
     min_percent_change: float = Field(default=0, ge=0)
     distance_threshold: float | None = Field(default=None, gt=0)

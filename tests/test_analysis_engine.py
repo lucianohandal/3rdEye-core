@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
 
 from analysis.engine import AnalysisEngine
-from analysis.models import AggregateSnapshot, BaselineSnapshot, ExpectedPattern, MetricBaseline
+from analysis.models import BaselineSnapshot, ExpectedPattern, MetricBaseline
 from analysis.rules import AnalysisRule, load_rules
+from util.dto.LogSummaryDTO import LogSummaryDTO
 
 
-def snapshot(window: str, **overrides) -> AggregateSnapshot:
+def snapshot(window: str, **overrides) -> LogSummaryDTO:
     values = {
         "window": window,
         "start": datetime(2026, 6, 10, 12, 0, tzinfo=timezone.utc),
@@ -13,7 +14,7 @@ def snapshot(window: str, **overrides) -> AggregateSnapshot:
         "total_logs": 0,
     }
     values.update(overrides)
-    return AggregateSnapshot(**values)
+    return LogSummaryDTO(**values)
 
 
 def test_threshold_rule_matches_fatal_logs() -> None:
@@ -66,6 +67,64 @@ def test_anomaly_rule_uses_metric_baseline() -> None:
     assert findings[0].details["z_score"] == 3
 
 
+def test_group_anomaly_checks_each_source_error_rate() -> None:
+    rule = AnalysisRule.model_validate(
+        {
+            "id": "error_source_rate_unusually_high",
+            "window": "5m",
+            "metric": "source_rate",
+            "filter": {"level": "ERROR"},
+            "condition": {
+                "type": "group_anomaly",
+                "sensitivity": "medium",
+                "direction": "up",
+                "min_percent_change": 0.25,
+            },
+            "severity": "high",
+        }
+    )
+    baseline = BaselineSnapshot(
+        metric_stats={
+            "source_rate[level=ERROR,sourceId=api-gateway]": MetricBaseline(
+                mean=0.10,
+                stddev=0.05,
+                sample_count=20,
+            ),
+            "source_rate[level=ERROR,sourceId=worker]": MetricBaseline(
+                mean=0.50,
+                stddev=0.10,
+                sample_count=20,
+            ),
+        }
+    )
+
+    findings = AnalysisEngine([rule]).evaluate(
+        snapshot(
+            "5m",
+            total_logs=100,
+            counts_by_level={"ERROR": 20},
+            counts_by_source_id={
+                "api-gateway": 8,
+                "worker": 10,
+                "scheduler": 2,
+                "info-service": 80,
+            },
+            log_level_by_source_id={
+                "api-gateway": "ERROR",
+                "worker": "ERROR",
+                "scheduler": "ERROR",
+                "info-service": "INFO",
+            },
+        ),
+        baseline,
+    )
+
+    assert len(findings) == 1
+    assert findings[0].details["group_key"] == "api-gateway"
+    assert findings[0].details["sourceId"] == "api-gateway"
+    assert findings[0].observed_value == 0.4
+
+
 def test_distribution_shift_rule_reports_top_changes() -> None:
     rule = AnalysisRule.model_validate(
         {
@@ -87,12 +146,12 @@ def test_distribution_shift_rule_reports_top_changes() -> None:
     assert findings[0].details["top_changes"][0]["key"] in {"INFO", "ERROR"}
 
 
-def test_missing_expected_pattern_uses_baseline_patterns() -> None:
+def test_missing_expected_pattern_uses_baseline_sources() -> None:
     rule = AnalysisRule.model_validate(
         {
             "id": "missing_expected_logs",
             "window": "3h",
-            "metric": "template_presence",
+            "metric": "source_presence",
             "condition": {
                 "type": "missing_expected_pattern",
                 "min_historical_occurrences": 5,
@@ -111,12 +170,12 @@ def test_missing_expected_pattern_uses_baseline_patterns() -> None:
     )
 
     findings = AnalysisEngine([rule]).evaluate(
-        snapshot("3h", counts_by_template={"other-template": 1}),
+        snapshot("3h", counts_by_source_id={"other-source": 1}),
         baseline,
     )
 
     assert len(findings) == 1
-    assert findings[0].details["missing_patterns"] == ["daily-job-finished"]
+    assert findings[0].details["missing_source_ids"] == ["daily-job-finished"]
 
 
 def test_default_rules_load() -> None:

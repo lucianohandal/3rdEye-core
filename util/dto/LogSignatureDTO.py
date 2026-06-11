@@ -1,7 +1,7 @@
 from datetime import datetime
 from pydantic import BaseModel
 
-from util.Enum.LogLevel import LogLevel
+from util.enum.LogLevel import LogLevel
 
 
 class LogSignatureDTO(BaseModel):

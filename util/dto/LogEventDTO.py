@@ -1,7 +1,7 @@
 from typing import Any
 from datetime import datetime, timezone
 from pydantic import BaseModel, ConfigDict, Field
-from util.Enum.LogLevel import LogLevel
+from util.enum.LogLevel import LogLevel
 
 class LogEventDTO(BaseModel):
     level: LogLevel

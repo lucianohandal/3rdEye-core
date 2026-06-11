@@ -2,9 +2,9 @@ from collections.abc import Iterable
 from math import isfinite
 from operator import eq, ge, gt, le, lt, ne
 
-from analysis.models import AggregateSnapshot, AnalysisFinding, BaselineSnapshot
+from analysis.models import AnalysisFinding, BaselineSnapshot
 from analysis.rules import AnalysisRule, RuleCondition
-
+from util.dto.LogSummaryDTO import LogSummaryDTO
 
 _OPERATORS = {
     ">": gt,
@@ -34,7 +34,7 @@ class AnalysisEngine:
 
     def evaluate(
         self,
-        snapshot: AggregateSnapshot,
+        snapshot: LogSummaryDTO,
         baseline: BaselineSnapshot | None = None,
     ) -> list[AnalysisFinding]:
         baseline = baseline or BaselineSnapshot()
@@ -44,33 +44,33 @@ class AnalysisEngine:
             if not rule.enabled or rule.window != snapshot.window:
                 continue
 
-            finding = self._evaluate_rule(rule, snapshot, baseline)
-            if finding is not None:
-                findings.append(finding)
+            findings.extend(self._evaluate_rule(rule, snapshot, baseline))
 
         return findings
 
     def _evaluate_rule(
         self,
         rule: AnalysisRule,
-        snapshot: AggregateSnapshot,
+        snapshot: LogSummaryDTO,
         baseline: BaselineSnapshot,
-    ) -> AnalysisFinding | None:
+    ) -> list[AnalysisFinding]:
         condition = rule.condition
 
         if condition.type == "threshold":
-            return _evaluate_threshold(rule, snapshot)
+            return _as_findings(_evaluate_threshold(rule, snapshot))
         if condition.type == "anomaly":
-            return _evaluate_anomaly(rule, snapshot, baseline)
+            return _as_findings(_evaluate_anomaly(rule, snapshot, baseline))
+        if condition.type == "group_anomaly":
+            return _evaluate_group_anomaly(rule, snapshot, baseline)
         if condition.type == "distribution_shift":
-            return _evaluate_distribution_shift(rule, snapshot, baseline)
+            return _as_findings(_evaluate_distribution_shift(rule, snapshot, baseline))
         if condition.type == "missing_expected_pattern":
-            return _evaluate_missing_expected_pattern(rule, snapshot, baseline)
+            return _as_findings(_evaluate_missing_expected_pattern(rule, snapshot, baseline))
 
         raise ValueError(f"Unsupported condition type: {condition.type}")
 
 
-def _evaluate_threshold(rule: AnalysisRule, snapshot: AggregateSnapshot) -> AnalysisFinding | None:
+def _evaluate_threshold(rule: AnalysisRule, snapshot: LogSummaryDTO) -> AnalysisFinding | None:
     condition = rule.condition
     observed = snapshot.metric_value(rule.metric, rule.filter)
     operator_fn = _OPERATORS[condition.operator]
@@ -90,7 +90,7 @@ def _evaluate_threshold(rule: AnalysisRule, snapshot: AggregateSnapshot) -> Anal
 
 def _evaluate_anomaly(
     rule: AnalysisRule,
-    snapshot: AggregateSnapshot,
+    snapshot: LogSummaryDTO,
     baseline: BaselineSnapshot,
 ) -> AnalysisFinding | None:
     condition = rule.condition
@@ -104,15 +104,14 @@ def _evaluate_anomaly(
     delta = observed - expected
     percent_change = abs(delta) / expected if expected else float("inf")
 
-    if metric_baseline.stddev == 0:
-        is_unusual = observed != expected and percent_change >= condition.min_percent_change
-        z_score = None
-    else:
-        z_score = delta / metric_baseline.stddev
-        threshold = _z_score_threshold(condition)
-        is_unusual = abs(z_score) >= threshold and percent_change >= condition.min_percent_change
+    z_score, is_unusual = _is_unusual_change(
+        observed=observed,
+        expected=expected,
+        stddev=metric_baseline.stddev,
+        condition=condition,
+    )
 
-    if not is_unusual:
+    if not is_unusual or not _matches_direction(delta, condition.direction):
         return None
 
     details = {
@@ -134,9 +133,61 @@ def _evaluate_anomaly(
     )
 
 
+def _evaluate_group_anomaly(
+    rule: AnalysisRule,
+    snapshot: LogSummaryDTO,
+    baseline: BaselineSnapshot,
+) -> list[AnalysisFinding]:
+    findings: list[AnalysisFinding] = []
+    observed_series = snapshot.metric_series(rule.metric, rule.filter)
+    group_filter_name = _group_filter_name(rule.metric)
+
+    for group_key, observed in observed_series.items():
+        metric_key = _metric_key(rule, {group_filter_name: group_key})
+        metric_baseline = baseline.metric_stats.get(metric_key)
+        if metric_baseline is None or metric_baseline.sample_count <= 0:
+            continue
+
+        expected = metric_baseline.mean
+        delta = observed - expected
+        z_score, is_unusual = _is_unusual_change(
+            observed=observed,
+            expected=expected,
+            stddev=metric_baseline.stddev,
+            condition=rule.condition,
+        )
+        if not is_unusual or not _matches_direction(delta, rule.condition.direction):
+            continue
+
+        percent_change = abs(delta) / expected if expected else float("inf")
+        details = {
+            "metric_key": metric_key,
+            "group_key": group_key,
+            group_filter_name: group_key,
+            "baseline_sample_count": metric_baseline.sample_count,
+            "percent_change": percent_change,
+        }
+        if z_score is not None and isfinite(z_score):
+            details["z_score"] = z_score
+
+        findings.append(
+            AnalysisFinding(
+                rule_id=rule.id,
+                window=rule.window,
+                severity=rule.severity,
+                message=f"{rule.id} matched for {group_key}: {observed:.3f} vs expected {expected:.3f}",
+                observed_value=observed,
+                expected_value=expected,
+                details=details,
+            )
+        )
+
+    return findings
+
+
 def _evaluate_distribution_shift(
     rule: AnalysisRule,
-    snapshot: AggregateSnapshot,
+    snapshot: LogSummaryDTO,
     baseline: BaselineSnapshot,
 ) -> AnalysisFinding | None:
     condition = rule.condition
@@ -167,7 +218,7 @@ def _evaluate_distribution_shift(
 
 def _evaluate_missing_expected_pattern(
     rule: AnalysisRule,
-    snapshot: AggregateSnapshot,
+    snapshot: LogSummaryDTO,
     baseline: BaselineSnapshot,
 ) -> AnalysisFinding | None:
     condition = rule.condition
@@ -179,7 +230,7 @@ def _evaluate_missing_expected_pattern(
     if not expected_keys:
         return None
 
-    observed_keys = {key for key, count in snapshot.counts_by_template.items() if count > 0}
+    observed_keys = {key for key, count in snapshot.counts_by_source_id.items() if count > 0}
     missing = sorted(expected_keys - observed_keys)
     if not missing:
         return None
@@ -188,26 +239,68 @@ def _evaluate_missing_expected_pattern(
         rule_id=rule.id,
         window=rule.window,
         severity=rule.severity,
-        message=f"{rule.id} matched: {len(missing)} expected pattern(s) missing",
+        message=f"{rule.id} matched: {len(missing)} expected source(s) missing",
         observed_value=float(len(missing)),
         expected_value=0,
         details={
-            "missing_patterns": missing,
+            "missing_source_ids": missing,
             "schedule": condition.schedule,
         },
     )
 
 
-def _metric_key(rule: AnalysisRule) -> str:
-    if not rule.filter:
+def _as_findings(finding: AnalysisFinding | None) -> list[AnalysisFinding]:
+    if finding is None:
+        return []
+    return [finding]
+
+
+def _metric_key(rule: AnalysisRule, extra_filters: dict[str, str] | None = None) -> str:
+    filters = dict(rule.filter)
+    if extra_filters:
+        filters.update(extra_filters)
+
+    if not filters:
         return rule.metric
 
-    filter_parts = ",".join(f"{key}={value}" for key, value in sorted(rule.filter.items()))
+    filter_parts = ",".join(f"{key}={value}" for key, value in sorted(filters.items()))
     return f"{rule.metric}[{filter_parts}]"
+
+
+def _group_filter_name(metric: str) -> str:
+    if metric == "source_rate":
+        return "sourceId"
+    return "group"
 
 
 def _z_score_threshold(condition: RuleCondition) -> float:
     return condition.z_score_threshold or _Z_SCORE_BY_SENSITIVITY[condition.sensitivity]
+
+
+def _is_unusual_change(
+    observed: float,
+    expected: float,
+    stddev: float,
+    condition: RuleCondition,
+) -> tuple[float | None, bool]:
+    percent_change = abs(observed - expected) / expected if expected else float("inf")
+    if stddev == 0:
+        return None, observed != expected and percent_change >= condition.min_percent_change
+
+    z_score = (observed - expected) / stddev
+    return (
+        z_score,
+        abs(z_score) >= _z_score_threshold(condition)
+        and percent_change >= condition.min_percent_change,
+    )
+
+
+def _matches_direction(delta: float, direction: str) -> bool:
+    if direction == "up":
+        return delta > 0
+    if direction == "down":
+        return delta < 0
+    return True
 
 
 def _total_variation_distance(left: dict[str, float], right: dict[str, float]) -> float:

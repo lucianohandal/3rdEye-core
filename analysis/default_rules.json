@@ -48,6 +48,23 @@
       "description": "Warning count is high compared with the baseline for this time slot."
     },
     {
+      "id": "error_source_rate_unusually_high",
+      "window": "5m",
+      "metric": "source_rate",
+      "filter": {
+        "level": "ERROR"
+      },
+      "condition": {
+        "type": "group_anomaly",
+        "method": "seasonal_baseline",
+        "sensitivity": "medium",
+        "direction": "up",
+        "min_percent_change": 0.25
+      },
+      "severity": "high",
+      "description": "Checks every error source and flags sources taking an unusually high share of total errors."
+    },
+    {
       "id": "total_volume_unusual_change",
       "window": "30m",
       "metric": "total_log_count",
@@ -66,9 +83,9 @@
       }
     },
     {
-      "id": "template_distribution_unusual_change",
+      "id": "source_distribution_unusual_change",
       "window": "30m",
-      "metric": "template_distribution",
+      "metric": "source_distribution",
       "condition": {
         "type": "distribution_shift",
         "method": "seasonal_baseline",
@@ -102,14 +119,14 @@
     {
       "id": "missing_expected_logs",
       "window": "3h",
-      "metric": "template_presence",
+      "metric": "source_presence",
       "condition": {
         "type": "missing_expected_pattern",
         "schedule": "business_days",
         "min_historical_occurrences": 5
       },
       "severity": "high",
-      "description": "A template that normally appears during this business-day slot is missing."
+      "description": "A source that normally appears during this business-day slot is missing."
     }
   ]
 }

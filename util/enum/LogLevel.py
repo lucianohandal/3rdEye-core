@@ -1,8 +1,8 @@
-from enum import Enum
+from enum import IntEnum
 
-class LogLevel(str, Enum):
-    DEBUG = "DEBUG"
-    INFO = "INFO"
-    WARN = "WARN"
-    ERROR = "ERROR"
-    FATAL = "FATAL"
+class LogLevel(IntEnum):
+    DEBUG = 10
+    INFO = 20
+    WARN = 30
+    ERROR = 40
+    FATAL = 50

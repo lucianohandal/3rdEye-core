@@ -8,8 +8,8 @@ from util.functions import timestamp_for_storage
 
 
 class LogSignatureDB:
-    def __init__(self, project_id: str) -> None:
-        self.project_id = project_id
+    def __init__(self, org_id: str) -> None:
+        self.org_id = org_id
 
     async def get_signature_id(self, log: LogEventDTO, conn: asyncpg.Connection | None = None) -> str:
         if conn is None:
@@ -24,12 +24,12 @@ class LogSignatureDB:
             WHERE file IS NOT DISTINCT FROM $1
               AND method IS NOT DISTINCT FROM $2
               AND stack IS NOT DISTINCT FROM $3
-              AND project_id IS NOT DISTINCT FROM $4
+              AND org_id IS NOT DISTINCT FROM $4
             """,
             log.file,
             log.method,
             log.stack,
-            self.project_id,
+            self.org_id,
         )
 
         if len(rows) == 1:
@@ -43,7 +43,7 @@ class LogSignatureDB:
         await conn.execute(
             """
             INSERT INTO LogSignature (
-                project_id,
+                org_id,
                 id,
                 template,
                 line,
@@ -56,7 +56,7 @@ class LogSignatureDB:
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             """,
-            self.project_id,
+            self.org_id,
             signature_id,
             log.template,
             log.line,

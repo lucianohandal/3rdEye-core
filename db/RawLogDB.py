@@ -8,9 +8,9 @@ from util.functions import timestamp_for_storage
 
 
 class RawLogDB:
-    def __init__(self, project_id: str) -> None:
-        self.project_id = project_id
-        self.log_signature_db = LogSignatureDB(project_id)
+    def __init__(self, org_id: str) -> None:
+        self.org_id = org_id
+        self.log_signature_db = LogSignatureDB(org_id)
 
     async def insert_many(self, logs: list[LogEventDTO]) -> None:
         if not logs:
@@ -24,7 +24,7 @@ class RawLogDB:
                 values.append(
                     (
                         str(uuid4()),
-                        self.project_id,
+                        self.org_id,
                         await self.log_signature_db.get_signature_id(log, conn),
                         timestamp_for_storage(log.timestamp),
                         log.level.value,
@@ -49,7 +49,7 @@ class RawLogDB:
                 """
                 INSERT INTO RawLogs (
                     id,
-                    project_id,
+                    org_id,
                     signature_id,
                     timestamp,
                     level,

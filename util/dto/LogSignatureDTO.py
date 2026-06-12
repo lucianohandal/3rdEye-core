@@ -9,7 +9,6 @@ class LogSignatureDTO(BaseModel):
     template: str
     line: int
     file: str
-    stack: str
     method: str
     first_appearance_timestamp: datetime
     first_appearance_commit: str

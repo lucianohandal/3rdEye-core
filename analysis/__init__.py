@@ -5,12 +5,14 @@ from analysis.models import (
     MetricBaseline,
 )
 from analysis.rules import AnalysisRule, load_rules
+from analysis.service import AnalysisService
 from util.dto.AnalysisFindingDTO import AnalysisFindingDTO
 
 __all__ = [
     "AnalysisEngine",
     "AnalysisFindingDTO",
     "AnalysisRule",
+    "AnalysisService",
     "BaselineSnapshot",
     "ExpectedPattern",
     "MetricBaseline",

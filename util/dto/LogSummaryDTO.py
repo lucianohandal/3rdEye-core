@@ -2,15 +2,15 @@ from datetime import datetime
 from typing import Any
 from pydantic import BaseModel, Field
 
+from util.dto.DBModel import DBModel
 from util.enum.LogWindow import LogWindow
 from util.functions import normalize_counts
 
 
-class LogSummaryDTO(BaseModel):
+class LogSummaryDTO(DBModel):
     window: LogWindow
-    start: datetime
-    end: datetime
-    total_logs: int = Field(default=0, ge=0)
+    start_time: datetime
+    log_count: int = Field(default=0, ge=0)
     counts_by_level: dict[str, int] = Field(default_factory=dict)
     counts_by_source_id: dict[str, int] = Field(default_factory=dict)
     log_level_by_source_id: dict[str, str] = Field(default_factory=dict)
@@ -19,7 +19,7 @@ class LogSummaryDTO(BaseModel):
         filters = filters or {}
 
         if metric == "total_log_count":
-            return float(self.total_logs)
+            return float(self.log_count)
 
         if metric == "log_count":
             level = filters.get("level")
@@ -31,7 +31,7 @@ class LogSummaryDTO(BaseModel):
             if source_id is not None:
                 return float(self.counts_by_source_id.get(str(source_id), 0))
             if level is None:
-                return float(self.total_logs)
+                return float(self.log_count)
             return float(self.counts_by_level.get(str(level).upper(), 0))
 
         if metric == "source_presence":
@@ -48,7 +48,7 @@ class LogSummaryDTO(BaseModel):
         if metric == "source_rate":
             level = filters.get("level")
             if level is None:
-                denominator = self.total_logs
+                denominator = self.log_count
                 source_counts = self.counts_by_source_id
             else:
                 level_key = str(level).upper()

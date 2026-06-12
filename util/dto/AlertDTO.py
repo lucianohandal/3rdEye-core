@@ -1,12 +1,12 @@
 from typing import Any
 
-from pydantic import BaseModel, Field
-
+from pydantic import Field
+from util.dto.DBModel import DBModel
 from util.enum.LogWindow import LogWindow
 from util.enum.Severity import Severity
 
 
-class AnalysisFindingDTO(BaseModel):
+class AlertDTO(DBModel):
     rule_id: str
     window: LogWindow
     severity: Severity

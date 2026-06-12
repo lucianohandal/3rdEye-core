@@ -1,11 +1,12 @@
 from datetime import datetime
-from pydantic import BaseModel
+from uuid import uuid4, UUID
 
+from util.dto.DBModel import DBModel
+from util.dto.LogEventDTO import LogEventDTO
 from util.enum.LogLevel import LogLevel
 
 
-class LogSignatureDTO(BaseModel):
-    id: str
+class LogSignatureDTO(DBModel):
     template: str
     line: int
     file: str
@@ -13,3 +14,12 @@ class LogSignatureDTO(BaseModel):
     first_appearance_timestamp: datetime
     first_appearance_commit: str
     log_level: LogLevel
+
+    @classmethod
+    def from_log_event(cls, log_event: LogEventDTO) -> "LogSignatureDTO":
+        return cls.model_validate({
+            **log_event.model_dump(include=cls.model_fields.keys()),
+            "id": uuid4(),
+            "first_appearance_timestamp": log_event.timestamp,
+            "first_appearance_commit": log_event.git_sha,
+        })

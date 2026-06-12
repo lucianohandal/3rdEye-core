@@ -68,7 +68,10 @@ CREATE TABLE IF NOT EXISTS log_signatures (
 );
 
 CREATE INDEX IF NOT EXISTS idx_log_signatures_id
-ON log_signatures (id);
+ON log_signatures (org_id, id);
+
+CREATE INDEX IF NOT EXISTS idx_log_signatures_org_file_method
+ON log_signatures (org_id, file, method);
 
 CREATE TABLE IF NOT EXISTS raw_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -147,7 +150,6 @@ WHERE closed_at IS NOT NULL;
 CREATE TABLE IF NOT EXISTS log_summaries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    larger_summary_id UUID REFERENCES log_summaries(id) ON DELETE SET CASCADE,
 
     time_window TEXT NOT NULL,
     start_time TIMESTAMPTZ NOT NULL,

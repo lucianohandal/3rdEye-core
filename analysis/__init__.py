@@ -6,11 +6,11 @@ from analysis.models import (
 )
 from analysis.rules import AnalysisRule, load_rules
 from analysis.service import AnalysisService
-from util.dto.AnalysisFindingDTO import AnalysisFindingDTO
+from util.dto.AlertDTO import AlertDTO
 
 __all__ = [
     "AnalysisEngine",
-    "AnalysisFindingDTO",
+    "AlertDTO",
     "AnalysisRule",
     "AnalysisService",
     "BaselineSnapshot",

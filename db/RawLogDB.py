@@ -1,78 +1,61 @@
-import json
-from uuid import uuid4
+import asyncpg
 
+from db.PostgresDB import PostgresDB
 from util.dto.LogEventDTO import LogEventDTO
-from db.LogSignatureDB import LogSignatureDB
-from db.postgres import get_pool
-from util.functions import timestamp_for_storage
+
+from util.dto.LogSignatureDTO import LogSignatureDTO
+from util.dto.RawLogDTO import RawLogDTO
 
 
-class RawLogDB:
-    def __init__(self, org_id: str) -> None:
-        self.org_id = org_id
-        self.log_signature_db = LogSignatureDB(org_id)
+class RawLogDB(PostgresDB):
+    async def insert_raw_logs(self, log_events: list[LogEventDTO]) -> None:
+        if not log_events:
+            return []
+        templates = []
+        files = []
+        methods = []
+        logs_by_key: dict[tuple[str | None, str | None, str | None, str | None], list[LogEventDTO]] = defaultdict(list)
+        for log in log_events:
+            key = (log.template, log.file, log.method, log.line)
+            if key not in logs_by_key:
+                files.append(log.file)
+                methods.append(log.method)
+                templates.append(log.template)
 
-    async def insert_many(self, logs: list[LogEventDTO]) -> None:
-        if not logs:
-            return
+            logs_by_key.get(key, []).append(log)
 
-        pool = await get_pool()
-
-        async with pool.acquire() as conn:
-            values = []
-            for log in logs:
-                values.append(
-                    (
-                        str(uuid4()),
-                        self.org_id,
-                        await self.log_signature_db.get_signature_id(log, conn),
-                        timestamp_for_storage(log.timestamp),
-                        log.level.value,
-                        log.message,
-                        log.service,
-                        log.environment,
-                        log.version,
-                        log.git_sha,
-                        log.trace_id,
-                        log.span_id,
-                        log.request_id,
-                        log.user_id,
-                        log.file,
-                        log.line,
-                        log.method,
-                        log.stack,
-                        json.dumps(log.args),
-                    )
-                )
-
-            await conn.executemany(
+        query = """
+                SELECT DISTINCT s.id, s.file, s.method, s.org_id, s.line
+                FROM log_signatures s
+                JOIN unnest($1::text[], $2::text[], $3::text[]) AS k(file, method, template)
+                  ON s.file IS NOT DISTINCT FROM k.file
+                 AND s.method IS NOT DISTINCT FROM k.method
+                 AND s.template IS NOT DISTINCT FROM k.template
+                WHERE s.org_id = $3;
                 """
-                INSERT INTO RawLogs (
-                    id,
-                    org_id,
-                    signature_id,
-                    timestamp,
-                    level,
-                    message,
-                    service,
-                    environment,
-                    version,
-                    git_sha,
-                    trace_id,
-                    span_id,
-                    request_id,
-                    user_id,
-                    file,
-                    line,
-                    method,
-                    stack,
-                    attributes
-                )
-                VALUES (
-                    $1, $2, $3, $4, $5, $6, $7, $8,
-                    $9, $10, $11, $12, $13, $14, $15, $16,
-                    $17, $18, $19
-                )
-                """,
-                values,
-            )
+        signatures = await self.get(
+            query,
+            files,
+            methods,
+            templates,
+            self.org_id,
+            record_class=LogSignatureDTO,
+        )
+
+        raw_logs: list[RawLogDTO] = []
+        new_signatures: list[LogSignatureDTO] = []
+        for signature in signatures:
+            key = (signature.template, signature.file, signature.method, signature.line)
+            for log_event in logs_by_key.pop(key):
+                raw_logs.append(RawLogDTO.from_log_event(log_event, signature.id))
+
+        # TODO: choose closest line if needed
+        for log_event_list in logs_by_key.values():
+            log_event: LogEventDTO = min(log_event_list, key=lambda x: log_event.timestamp)
+            signature = LogSignatureDTO.from_log_event(log_event)
+            raw_logs.append(RawLogDTO.from_log_event(log_event, signature.id))
+            new_signatures.append(signature)
+
+        await self.insert_many(LogSignatureDTO.table_name(), new_signatures)
+        await self.insert_many(RawLogDTO.table_name(), raw_logs)
+        return None

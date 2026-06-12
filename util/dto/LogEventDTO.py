@@ -1,12 +1,14 @@
 from typing import Any
 from datetime import datetime, timezone
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from util.dto.DBModel import DBModel
 from util.enum.LogLevel import LogLevel
 
-class LogEventDTO(BaseModel):
-    message: str = Field(min_length=1, max_length=10_000)
+class LogEventDTO(DBModel):
     template: str = Field(min_length=1, max_length=10_000)
-    args: list[Any] # do I need this?
+
+    message: str = Field(min_length=1, max_length=10_000)
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     stack: str | None = None
 

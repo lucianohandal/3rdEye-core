@@ -3,7 +3,7 @@ from math import isfinite
 
 from analysis.models import BaselineSnapshot
 from analysis.rules import AnalysisRule, RuleCondition
-from util.dto.AnalysisFindingDTO import AnalysisFindingDTO
+from util.dto.AlertDTO import AlertDTO
 from util.dto.LogSummaryDTO import LogSummaryDTO
 from util.enum.RuleConditionType import RuleConditionType
 
@@ -16,9 +16,9 @@ class AnalysisEngine:
         self,
         snapshot: LogSummaryDTO,
         baseline: BaselineSnapshot | None = None,
-    ) -> list[AnalysisFindingDTO]:
+    ) -> list[AlertDTO]:
         baseline = baseline or BaselineSnapshot()
-        findings: list[AnalysisFindingDTO] = []
+        findings: list[AlertDTO] = []
 
         for rule in self.rules:
             if not rule.enabled or rule.window != snapshot.window:
@@ -33,7 +33,7 @@ class AnalysisEngine:
         rule: AnalysisRule,
         snapshot: LogSummaryDTO,
         baseline: BaselineSnapshot,
-    ) -> list[AnalysisFindingDTO]:
+    ) -> list[AlertDTO]:
         condition = rule.condition
 
         if condition.type == RuleConditionType.THRESHOLD:
@@ -50,7 +50,7 @@ class AnalysisEngine:
         raise ValueError(f"Unsupported condition type: {condition.type}")
 
 
-def _evaluate_threshold(rule: AnalysisRule, snapshot: LogSummaryDTO) -> AnalysisFindingDTO | None:
+def _evaluate_threshold(rule: AnalysisRule, snapshot: LogSummaryDTO) -> AlertDTO | None:
     condition = rule.condition
     if condition.operator is None or condition.value is None:
         raise ValueError("threshold conditions require operator and value")
@@ -60,7 +60,7 @@ def _evaluate_threshold(rule: AnalysisRule, snapshot: LogSummaryDTO) -> Analysis
     if not condition.operator.compare(observed, condition.value):
         return None
 
-    return AnalysisFindingDTO(
+    return AlertDTO(
         rule_id=rule.id,
         window=rule.window,
         severity=rule.severity,
@@ -74,7 +74,7 @@ def _evaluate_anomaly(
     rule: AnalysisRule,
     snapshot: LogSummaryDTO,
     baseline: BaselineSnapshot,
-) -> AnalysisFindingDTO | None:
+) -> AlertDTO | None:
     condition = rule.condition
     metric_key = _metric_key(rule)
     metric_baseline = baseline.metric_stats.get(metric_key)
@@ -104,7 +104,7 @@ def _evaluate_anomaly(
     if z_score is not None and isfinite(z_score):
         details["z_score"] = z_score
 
-    return AnalysisFindingDTO(
+    return AlertDTO(
         rule_id=rule.id,
         window=rule.window,
         severity=rule.severity,
@@ -119,8 +119,8 @@ def _evaluate_group_anomaly(
     rule: AnalysisRule,
     snapshot: LogSummaryDTO,
     baseline: BaselineSnapshot,
-) -> list[AnalysisFindingDTO]:
-    findings: list[AnalysisFindingDTO] = []
+) -> list[AlertDTO]:
+    findings: list[AlertDTO] = []
     observed_series = snapshot.metric_series(rule.metric, rule.filter)
     group_filter_name = _group_filter_name(rule.metric)
 
@@ -153,7 +153,7 @@ def _evaluate_group_anomaly(
             details["z_score"] = z_score
 
         findings.append(
-            AnalysisFindingDTO(
+            AlertDTO(
                 rule_id=rule.id,
                 window=rule.window,
                 severity=rule.severity,
@@ -171,7 +171,7 @@ def _evaluate_distribution_shift(
     rule: AnalysisRule,
     snapshot: LogSummaryDTO,
     baseline: BaselineSnapshot,
-) -> AnalysisFindingDTO | None:
+) -> AlertDTO | None:
     condition = rule.condition
     observed = snapshot.distribution(rule.metric)
     expected = baseline.distributions.get(rule.metric)
@@ -183,7 +183,7 @@ def _evaluate_distribution_shift(
     if distance < threshold:
         return None
 
-    return AnalysisFindingDTO(
+    return AlertDTO(
         rule_id=rule.id,
         window=rule.window,
         severity=rule.severity,
@@ -202,7 +202,7 @@ def _evaluate_missing_expected_pattern(
     rule: AnalysisRule,
     snapshot: LogSummaryDTO,
     baseline: BaselineSnapshot,
-) -> AnalysisFindingDTO | None:
+) -> AlertDTO | None:
     condition = rule.condition
     expected_keys = set(condition.expected_patterns) or {
         key
@@ -217,7 +217,7 @@ def _evaluate_missing_expected_pattern(
     if not missing:
         return None
 
-    return AnalysisFindingDTO(
+    return AlertDTO(
         rule_id=rule.id,
         window=rule.window,
         severity=rule.severity,
@@ -231,7 +231,7 @@ def _evaluate_missing_expected_pattern(
     )
 
 
-def _as_findings(finding: AnalysisFindingDTO | None) -> list[AnalysisFindingDTO]:
+def _as_findings(finding: AlertDTO | None) -> list[AlertDTO]:
     if finding is None:
         return []
     return [finding]

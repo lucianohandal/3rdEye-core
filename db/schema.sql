@@ -155,6 +155,7 @@ CREATE TABLE IF NOT EXISTS log_summaries (
     start_time TIMESTAMPTZ NOT NULL,
     -- log_signature_ids UUID[] NOT NULL,
     log_count INT NOT NULL DEFAULT 0,
+    processed_at TIMESTAMPTZ NULL DEFAULT NULL,
 
     CONSTRAINT valid_window CHECK (time_window IN ('xs', 's', 'm', 'l', 'xl', 'xxl')
 
@@ -169,4 +170,9 @@ CREATE TABLE IF NOT EXISTS log_summary_signatures (
     log_count INT NOT NULL DEFAULT 0,
 
     PRIMARY KEY (summary_id, log_signature_id)
+);
+
+CREATE TABLE IF NOT EXISTS time_window_sizes (
+    size TEXT PRIMARY KEY,
+    time_delta INTERVAL NOT NULL
 );

@@ -33,7 +33,7 @@ class AnalysisService:
         end: datetime | None = None,
         baseline: BaselineSnapshot | None = None,
     ) -> list[AlertDTO]:
-        summary = await self.summary_db.generate_summary(window)
+        summary = await self.summary_db.gen_log_summaries(window)
         return AnalysisEngine(self.rules).evaluate(summary, baseline)
 
     async def evaluate_and_store_window(
@@ -42,7 +42,7 @@ class AnalysisService:
         end: datetime | None = None,
         baseline: BaselineSnapshot | None = None,
     ) -> list[AlertDTO]:
-        summary = await self.summary_db.generate_summary(window)
+        summary = await self.summary_db.gen_log_summaries(window)
         findings = AnalysisEngine(self.rules).evaluate(summary, baseline)
         await self.finding_db.insert_many(findings, summary.start, summary.end)
         return findings

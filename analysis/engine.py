@@ -5,12 +5,17 @@ from analysis.models import BaselineSnapshot
 from analysis.rules import AnalysisRule, RuleCondition
 from util.dto.AlertDTO import AlertDTO
 from util.dto.LogSummaryDTO import LogSummaryDTO
+from util.enum.LogWindow import LogWindow
 from util.enum.RuleConditionType import RuleConditionType
 
 
 class AnalysisEngine:
     def __init__(self, rules: Iterable[AnalysisRule]) -> None:
         self.rules = list(rules)
+        self.rules_by_window: dict[LogWindow, list[AnalysisRule]] = {}
+        for rule in self.rules:
+            if rule.enabled:
+                self.rules_by_window.setdefault(rule.window, []).append(rule)
 
     def evaluate(
         self,
@@ -21,9 +26,7 @@ class AnalysisEngine:
         findings: list[AlertDTO] = []
 
         for summary in summaries:
-            for rule in self.rules:
-                if not rule.enabled or rule.window != summary.window:
-                    continue
+            for rule in self.rules_by_window.get(summary.window, []):
                 findings.extend(self._evaluate_rule(rule, summary, baseline))
 
         return findings
@@ -62,7 +65,6 @@ def _evaluate_threshold(rule: AnalysisRule, snapshot: LogSummaryDTO) -> AlertDTO
 
     return AlertDTO(
         rule_id=rule.id,
-        window=rule.window,
         severity=rule.severity,
         message=f"{rule.id} matched: observed {observed:g} {condition.operator.value} {condition.value:g}",
         observed_value=observed,
@@ -106,7 +108,6 @@ def _evaluate_anomaly(
 
     return AlertDTO(
         rule_id=rule.id,
-        window=rule.window,
         severity=rule.severity,
         message=f"{rule.id} matched: {metric_key} moved from {expected:g} to {observed:g}",
         observed_value=observed,
@@ -155,7 +156,6 @@ def _evaluate_group_anomaly(
         findings.append(
             AlertDTO(
                 rule_id=rule.id,
-                window=rule.window,
                 severity=rule.severity,
                 message=f"{rule.id} matched for {group_key}: {observed:.3f} vs expected {expected:.3f}",
                 observed_value=observed,
@@ -185,7 +185,6 @@ def _evaluate_distribution_shift(
 
     return AlertDTO(
         rule_id=rule.id,
-        window=rule.window,
         severity=rule.severity,
         message=f"{rule.id} matched: {rule.metric} shifted by {distance:.3f}",
         observed_value=distance,
@@ -219,7 +218,6 @@ def _evaluate_missing_expected_pattern(
 
     return AlertDTO(
         rule_id=rule.id,
-        window=rule.window,
         severity=rule.severity,
         message=f"{rule.id} matched: {len(missing)} expected source(s) missing",
         observed_value=float(len(missing)),

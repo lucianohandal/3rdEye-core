@@ -1,14 +1,16 @@
-from typing import TypeVar
+import os
+from collections.abc import Sequence
+from typing import Any, TypeVar
 
-from util.dto.DBModel import DBModel
 import asyncpg
 
+from util.dto.DBModel import DBModel
 
 
 TDBModel = TypeVar("TDBModel", bound=DBModel)
 
 class PostgresDB:
-    DATABASE_URL = "DB_URL"
+    DATABASE_URL = os.environ.get("DB_URL", "DB_URL")
     _pool: asyncpg.Pool | None = None
 
     def __init__(self, org_id: str) -> None:
@@ -32,38 +34,16 @@ class PostgresDB:
         if not entries:
             return
         model_class = entries[0].__class__
-
-        pool = await PostgresDB.get_pool()
-
-        async with pool.acquire() as conn:
-            values = [value for entry in entries for value in entry.values()]
-
-            await conn.executemany(
-                f"""
-                INSERT INTO {model_class.table_name()} ({model_class.field_list()})
-                VALUES ({model_class.place_holders()})
-                """,
-                values,
-            )
-
-        model_class = entries[0].__class__
-
-        table = model_class.table_name()
-        fields = model_class.fields(exclude={"id"})
-
-        id_placeholder = len(fields) + 1
-        org_placeholder = len(fields) + 2
-        values = [entry.update_values(self.org_id) for entry in entries]
+        fields = model_class.fields()
+        values = [tuple(entry.db_dump().get(field) for field in fields) for entry in entries]
 
         pool = await PostgresDB.get_pool()
 
         async with pool.acquire() as conn:
             await conn.executemany(
                 f"""
-                UPDATE {table}
-                SET {model_class.place_holders()}
-                WHERE id = ${id_placeholder}
-                  AND org_id = ${org_placeholder}
+                INSERT INTO {model_class.table_name()} ({",".join(fields)})
+                VALUES ({model_class.place_holders(include=set(fields))})
                 """,
                 values,
             )
@@ -75,7 +55,7 @@ class PostgresDB:
         model_class = entries[0].__class__
 
         table = model_class.table_name()
-        fields = model_class.fields(exclude={"id"})
+        fields = model_class.update_fields()
 
         id_placeholder = len(fields) + 1
         org_placeholder = len(fields) + 2
@@ -87,41 +67,60 @@ class PostgresDB:
             await conn.executemany(
                 f"""
                 UPDATE {table}
-                SET {model_class.place_holders()}
+                SET {model_class.set_clause(include=set(fields))}
                 WHERE id = ${id_placeholder}
                   AND org_id = ${org_placeholder}
                 """,
                 values,
             )
 
-    async def execute(self,
-                  query: str,
-                  *args,
-                  conn: asyncpg.Connection | None = None,
-                  ):
+    async def executemany(
+        self,
+        query: str,
+        args: Sequence[Sequence[Any]],
+        conn: asyncpg.Connection | None = None,
+    ) -> None:
+        if not query or not args:
+            return None
+
+        if conn is None:
+            pool = await PostgresDB.get_pool()
+            async with pool.acquire() as pooled_conn:
+                await pooled_conn.executemany(query, args)
+            return None
+
+        await conn.executemany(query, args)
+        return None
+
+    async def execute(
+        self,
+        query: str,
+        *args,
+        conn: asyncpg.Connection | None = None,
+    ):
         if not query:
             return None
 
         if conn is None:
             pool = await PostgresDB.get_pool()
             async with pool.acquire() as pooled_conn:
-                return await self.get(pooled_conn, query, *args)
+                return await pooled_conn.execute(query, *args)
 
         result = await conn.execute(
             query,
             *args,
-            self.org_id
         )
 
         return result
 
-    async def get(self,
-                  query: str,
-                  *args,
-                  conn: asyncpg.Connection | None = None,
-                  timeout: float | None = None,
-                  record_class: type[TDBModel] | None = None,
-                  ) -> list[TDBModel] | None:
+    async def get(
+        self,
+        query: str,
+        *args,
+        conn: asyncpg.Connection | None = None,
+        timeout: float | None = None,
+        record_class: type[TDBModel] | None = None,
+    ) -> list[TDBModel] | None:
         if not query:
             return None
 
@@ -131,12 +130,18 @@ class PostgresDB:
         if conn is None:
             pool = await PostgresDB.get_pool()
             async with pool.acquire() as pooled_conn:
-                return await self.get(pooled_conn, query, *args, timeout=timeout, record_class=record_class)
+                return await self.get(
+                    query,
+                    *args,
+                    conn=pooled_conn,
+                    timeout=timeout,
+                    record_class=record_class,
+                )
 
         rows = await conn.fetch(
             query,
             *args,
-            self.org_id
+            timeout=timeout,
         )
 
         if record_class is None:

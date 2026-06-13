@@ -5,10 +5,10 @@ from util.functions import to_snake_case
 
 class DBModel(BaseModel):
     def db_dump(self):
-        return self.model_dump()
+        return self.model_dump(mode="python")
 
     def values(self):
-        return self.db_dump().values()
+        return tuple(self.db_dump().values())
 
     def update_values(self, org_id: str):
         data = self.db_dump()
@@ -57,3 +57,7 @@ class DBModel(BaseModel):
     def table_name(cls) -> str:
         name = cls.__name__.removesuffix("DTO")
         return to_snake_case(name) + "s"
+
+    @classmethod
+    def update_fields(cls) -> list[str]:
+        return cls.fields(exclude={"id", "org_id"})

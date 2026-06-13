@@ -1,21 +1,22 @@
-import uuid
 from datetime import datetime
 from typing import Any
-from pydantic import BaseModel, Field
+from uuid import UUID
+
+from pydantic import Field
 
 from util.dto.DBModel import DBModel
-from util.enum import LogLevel
 from util.enum.LogWindow import LogWindow
 from util.functions import normalize_counts
 
 
 class LogSummaryDTO(DBModel):
+    id: UUID | None = None
     window: LogWindow
     start_time: datetime
     log_count: int = Field(default=0, ge=0)
     counts_by_level: dict[str, int] = Field(default_factory=dict)
     counts_by_source_id: dict[str, int] = Field(default_factory=dict)
-    source_id_by_log_level: dict[int, set[str]] = Field(default_factory=dict)
+    source_id_by_log_level: dict[str, set[str]] = Field(default_factory=dict)
 
     def metric_value(self, metric: str, filters: dict[str, Any] | None = None) -> float:
         filters = filters or {}
@@ -74,4 +75,4 @@ class LogSummaryDTO(DBModel):
         raise ValueError(f"Unsupported distribution metric: {metric}")
 
     def _source_matches_level(self, source_id: str, level: str) -> bool:
-        return self.source_id_by_log_level.get(source_id, "").upper() == level.upper()
+        return source_id in self.source_id_by_log_level.get(level.upper(), set())

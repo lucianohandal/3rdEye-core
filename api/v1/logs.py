@@ -17,7 +17,7 @@ async def ingest_logs(log_events: list[RawLogDTO], response: Response):
     #TODO: authorize api_key_id
 
     db = RawLogDB(org_id)
-    await db.insert_many(logs=log_events)
+    await db.insert_raw_logs(log_events)
 
     response.status_code = status.HTTP_202_ACCEPTED
     return {

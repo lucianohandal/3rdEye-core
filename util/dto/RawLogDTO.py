@@ -1,8 +1,10 @@
-from util.dto.DBModel import DBModel
 from datetime import datetime
+from typing import Any
 from uuid import UUID
+
 from pydantic import Field
 
+from util.dto.DBModel import DBModel
 from util.enum.LogLevel import LogLevel
 
 
@@ -29,11 +31,11 @@ class RawLogDTO(DBModel):
     user_id: str | None = Field(default=None, max_length=255)
 
     # Custom Metadata
-    attributes: dict[str, str] = Field(default_factory=dict)
+    attributes: dict[str, Any] = Field(default_factory=dict)
 
     # Log Signature
     level: LogLevel
     template: str = Field(min_length=1, max_length=10_000)
-    file: str | None = Field(default=None, max_length=1_000)
-    line: int | None = Field(default=None, ge=1)
-    method: str | None = Field(default=None, max_length=255)
+    file: str = Field(max_length=1_000)
+    line: int = Field(ge=1)
+    method: str = Field(max_length=255)

@@ -13,7 +13,7 @@ ON plans (id);
 
 CREATE TABLE IF NOT EXISTS organizations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    plan_id REFERENCES plans(id),
+    plan_id UUID REFERENCES plans(id),
     status TEXT NOT NULL DEFAULT 'disabled',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -132,7 +132,7 @@ CREATE INDEX IF NOT EXISTS idx_raw_logs_org_span_id
 ON raw_logs (org_id, span_id, timestamp DESC);
 
 CREATE INDEX IF NOT EXISTS idx_raw_logs_org_request_id
-ON raw_logs (org_id, request_id), timestamp DESC);
+ON raw_logs (org_id, request_id, timestamp DESC);
 
 CREATE INDEX IF NOT EXISTS idx_raw_logs_org_user_id
 ON raw_logs (org_id, user_id, timestamp DESC);
@@ -167,9 +167,10 @@ CREATE TABLE IF NOT EXISTS log_summaries (
     start_time TIMESTAMPTZ NOT NULL,
     -- log_signature_ids UUID[] NOT NULL,
     log_count INT NOT NULL DEFAULT 0,
+    claimed_at TIMESTAMPTZ NULL DEFAULT NULL,
     processed_at TIMESTAMPTZ NULL DEFAULT NULL,
 
-    CONSTRAINT valid_window CHECK (time_window IN ('xs', 's', 'm', 'l', 'xl', 'xxl')
+    CONSTRAINT valid_window CHECK (time_window IN ('xs', 's', 'm', 'l', 'xl', 'xxl')),
 
     UNIQUE (org_id, time_window, start_time)
 );

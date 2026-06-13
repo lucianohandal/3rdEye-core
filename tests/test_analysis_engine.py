@@ -4,14 +4,14 @@ from analysis.engine import AnalysisEngine
 from analysis.models import BaselineSnapshot, ExpectedPattern, MetricBaseline
 from analysis.rules import AnalysisRule, load_rules
 from util.dto.LogSummaryDTO import LogSummaryDTO
+from util.enum.Severity import Severity
 
 
 def snapshot(window: str, **overrides) -> LogSummaryDTO:
     values = {
         "window": window,
-        "start": datetime(2026, 6, 10, 12, 0, tzinfo=timezone.utc),
-        "end": datetime(2026, 6, 10, 12, 5, tzinfo=timezone.utc),
-        "total_logs": 0,
+        "start_time": datetime(2026, 6, 10, 12, 0, tzinfo=timezone.utc),
+        "log_count": 0,
     }
     values.update(overrides)
     return LogSummaryDTO(**values)
@@ -21,27 +21,27 @@ def test_threshold_rule_matches_fatal_logs() -> None:
     rule = AnalysisRule.model_validate(
         {
             "id": "fatal_logs_present",
-            "window": "5m",
+            "window": "s",
             "metric": "log_count",
             "filter": {"level": "FATAL"},
             "condition": {"type": "threshold", "operator": ">", "value": 0},
-            "severity": "critical",
+            "severity": 50,
         }
     )
 
     findings = AnalysisEngine([rule]).evaluate(
-        snapshot("5m", total_logs=1, counts_by_level={"FATAL": 1})
+        [snapshot("s", log_count=1, counts_by_level={"FATAL": 1})]
     )
 
     assert len(findings) == 1
-    assert findings[0].severity == "critical"
+    assert findings[0].severity == Severity.CRITICAL
 
 
 def test_anomaly_rule_uses_metric_baseline() -> None:
     rule = AnalysisRule.model_validate(
         {
             "id": "error_logs_unusually_high",
-            "window": "5m",
+            "window": "s",
             "metric": "log_count",
             "filter": {"level": "ERROR"},
             "condition": {
@@ -49,7 +49,7 @@ def test_anomaly_rule_uses_metric_baseline() -> None:
                 "sensitivity": "medium",
                 "min_percent_change": 0.25,
             },
-            "severity": "high",
+            "severity": 40,
         }
     )
     baseline = BaselineSnapshot(
@@ -59,7 +59,7 @@ def test_anomaly_rule_uses_metric_baseline() -> None:
     )
 
     findings = AnalysisEngine([rule]).evaluate(
-        snapshot("5m", total_logs=20, counts_by_level={"ERROR": 16}),
+        [snapshot("s", log_count=20, counts_by_level={"ERROR": 16})],
         baseline,
     )
 
@@ -71,7 +71,7 @@ def test_group_anomaly_checks_each_source_error_rate() -> None:
     rule = AnalysisRule.model_validate(
         {
             "id": "error_source_rate_unusually_high",
-            "window": "5m",
+            "window": "s",
             "metric": "source_rate",
             "filter": {"level": "ERROR"},
             "condition": {
@@ -80,7 +80,7 @@ def test_group_anomaly_checks_each_source_error_rate() -> None:
                 "direction": "up",
                 "min_percent_change": 0.25,
             },
-            "severity": "high",
+            "severity": 40,
         }
     )
     baseline = BaselineSnapshot(
@@ -99,23 +99,23 @@ def test_group_anomaly_checks_each_source_error_rate() -> None:
     )
 
     findings = AnalysisEngine([rule]).evaluate(
-        snapshot(
-            "5m",
-            total_logs=100,
-            counts_by_level={"ERROR": 20},
-            counts_by_source_id={
-                "api-gateway": 8,
-                "worker": 10,
-                "scheduler": 2,
-                "info-service": 80,
-            },
-            log_level_by_source_id={
-                "api-gateway": "ERROR",
-                "worker": "ERROR",
-                "scheduler": "ERROR",
-                "info-service": "INFO",
-            },
-        ),
+        [
+            snapshot(
+                "s",
+                log_count=100,
+                counts_by_level={"ERROR": 20},
+                counts_by_source_id={
+                    "api-gateway": 8,
+                    "worker": 10,
+                    "scheduler": 2,
+                    "info-service": 80,
+                },
+                source_id_by_log_level={
+                    "ERROR": {"api-gateway", "worker", "scheduler"},
+                    "INFO": {"info-service"},
+                },
+            )
+        ],
         baseline,
     )
 
@@ -129,7 +129,7 @@ def test_distribution_shift_rule_reports_top_changes() -> None:
     rule = AnalysisRule.model_validate(
         {
             "id": "level_distribution_unusual_change",
-            "window": "30m",
+            "window": "m",
             "metric": "level_distribution",
             "condition": {"type": "distribution_shift", "distance_threshold": 0.2},
         }
@@ -137,7 +137,7 @@ def test_distribution_shift_rule_reports_top_changes() -> None:
     baseline = BaselineSnapshot(distributions={"level_distribution": {"INFO": 0.9, "ERROR": 0.1}})
 
     findings = AnalysisEngine([rule]).evaluate(
-        snapshot("30m", total_logs=100, counts_by_level={"INFO": 50, "ERROR": 50}),
+        [snapshot("m", log_count=100, counts_by_level={"INFO": 50, "ERROR": 50})],
         baseline,
     )
 
@@ -150,13 +150,13 @@ def test_missing_expected_pattern_uses_baseline_sources() -> None:
     rule = AnalysisRule.model_validate(
         {
             "id": "missing_expected_logs",
-            "window": "3h",
+            "window": "l",
             "metric": "source_presence",
             "condition": {
                 "type": "missing_expected_pattern",
                 "min_historical_occurrences": 5,
             },
-            "severity": "high",
+            "severity": 40,
         }
     )
     baseline = BaselineSnapshot(
@@ -170,7 +170,7 @@ def test_missing_expected_pattern_uses_baseline_sources() -> None:
     )
 
     findings = AnalysisEngine([rule]).evaluate(
-        snapshot("3h", counts_by_source_id={"other-source": 1}),
+        [snapshot("l", counts_by_source_id={"other-source": 1})],
         baseline,
     )
 

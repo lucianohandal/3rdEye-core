@@ -39,3 +39,11 @@ class RawLogDTO(DBModel):
     file: str = Field(max_length=1_000)
     line: int = Field(ge=1)
     method: str = Field(max_length=255)
+
+    def signature_key(self) -> tuple[str, int, str, str]:
+        return (
+            self.template,
+            self.line,
+            self.file,
+            self.method,
+        )

@@ -79,14 +79,14 @@ CREATE INDEX IF NOT EXISTS idx_log_signatures_org_template_line_file_method
 ON log_signatures (org_id, template, line, file, method);
 
 CREATE TABLE IF NOT EXISTS raw_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    signature_id UUID NOT NULL REFERENCES log_signatures(id) ON DELETE CASCADE,
-
     message TEXT NOT NULL,
     timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     stack TEXT,
+
+    -- DB Metadata
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    signature_id UUID NULL REFERENCES log_signatures(id) ON DELETE CASCADE,
 
     -- Environment Metadata
     service VARCHAR(255),
@@ -99,6 +99,13 @@ CREATE TABLE IF NOT EXISTS raw_logs (
     span_id VARCHAR(255),
     request_id VARCHAR(255),
     user_id VARCHAR(255),
+
+    -- Log Signature
+    template TEXT NOT NULL,
+    line SMALLINT NOT NULL,
+    file TEXT NOT NULL,
+    method TEXT NOT NULL,
+    log_level log_level_smallint NOT NULL,
 
     attributes JSONB NOT NULL DEFAULT '{}'::jsonb
 );

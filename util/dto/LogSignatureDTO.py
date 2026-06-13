@@ -3,7 +3,7 @@ from uuid import uuid4, UUID
 
 from util.dto import RawLogDTO
 from util.dto.DBModel import DBModel
-from util.dto.LogEventDTO import LogEventDTO
+from util.dto.RawLogDTO import RawLogDTO
 from util.enum.LogLevel import LogLevel
 
 
@@ -18,7 +18,7 @@ class LogSignatureDTO(DBModel):
     log_level: LogLevel
 
     @classmethod
-    def from_log_event(cls, log_event: LogEventDTO) -> "LogSignatureDTO":
+    def from_raw_logs(cls, log_event: RawLogDTO) -> "LogSignatureDTO":
         return cls.model_validate({
             **log_event.model_dump(include=cls.model_fields.keys(), exclude="id"),
             "id": uuid4(),

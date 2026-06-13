@@ -39,7 +39,7 @@ class LogSummaryDB(PostgresDB):
               ON lss.summary_id = u.id
             ORDER BY u.start_time, u.id
             """
-        rows = await self.get(query, self.org_id, window.name)
+        rows = await self.execute(query, self.org_id, window.name)
 
         summaries: dict[str, LogSummaryDTO] = {}
 

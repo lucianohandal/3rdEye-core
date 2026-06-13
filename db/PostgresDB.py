@@ -1,4 +1,7 @@
 from typing import TypeVar
+
+from pydantic._internal import _model_construction
+
 from util.dto.DBModel import DBModel
 import asyncpg
 
@@ -27,24 +30,92 @@ class PostgresDB:
 
         return pool
 
-    async def insert_many(self, table: str, entries: list[DBModel]) -> None:
-        if not entries or not table:
+    async def insertmany(self, entries: list[DBModel]) -> None:
+        if not entries:
             return
+        model_class = entries[0].__class__
 
         pool = await PostgresDB.get_pool()
 
         async with pool.acquire() as conn:
-            field_list = entries[0].field_list()
-            placeholders = entries[0].placeholders()
             values = [value for entry in entries for value in entry.values()]
 
             await conn.executemany(
                 f"""
-                INSERT INTO {table} ({field_list})
-                VALUES ({placeholders})
+                INSERT INTO {model_class.table_name()} ({model_class.field_list()})
+                VALUES ({model_class.place_holders()})
                 """,
                 values,
             )
+
+        model_class = entries[0].__class__
+
+        table = model_class.table_name()
+        fields = model_class.fields(exclude={"id"})
+
+        id_placeholder = len(fields) + 1
+        org_placeholder = len(fields) + 2
+        values = [entry.update_values(self.org_id) for entry in entries]
+
+        pool = await PostgresDB.get_pool()
+
+        async with pool.acquire() as conn:
+            await conn.executemany(
+                f"""
+                UPDATE {table}
+                SET {model_class.place_holders()}
+                WHERE id = ${id_placeholder}
+                  AND org_id = ${org_placeholder}
+                """,
+                values,
+            )
+
+    async def updatemany(self, entries: list[DBModel]) -> None:
+        if not entries:
+            return
+
+        model_class = entries[0].__class__
+
+        table = model_class.table_name()
+        fields = model_class.fields(exclude={"id"})
+
+        id_placeholder = len(fields) + 1
+        org_placeholder = len(fields) + 2
+        values = [entry.update_values(self.org_id) for entry in entries]
+
+        pool = await PostgresDB.get_pool()
+
+        async with pool.acquire() as conn:
+            await conn.executemany(
+                f"""
+                UPDATE {table}
+                SET {model_class.place_holders()}
+                WHERE id = ${id_placeholder}
+                  AND org_id = ${org_placeholder}
+                """,
+                values,
+            )
+
+    async def execute(self,
+                  query: str,
+                  *args,
+                  conn: asyncpg.Connection | None = None,
+                  ):
+        if not query:
+            return None
+
+        if conn is None:
+            pool = await PostgresDB.get_pool()
+            async with pool.acquire() as pooled_conn:
+                return await self.get(pooled_conn, query, *args)
+
+        result = await conn.execute(
+            query,
+            *args,
+            self.org_id
+        )
+
+        return result
 
     async def get(self,
                   query: str,

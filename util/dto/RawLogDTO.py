@@ -1,21 +1,20 @@
 from util.dto.DBModel import DBModel
 from datetime import datetime
-from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 from pydantic import Field
 
-from util.dto.LogEventDTO import LogEventDTO
+from util.enum.LogLevel import LogLevel
 
 
 class RawLogDTO(DBModel):
-    id: UUID
-
-    org_id: UUID | None = None
-    signature_id: UUID  | None = None
-
     message: str
     timestamp: datetime | None = None
     stack: str | None = None
+
+    # DB Metadata
+    id: UUID | None = None
+    org_id: UUID | None = None
+    signature_id: UUID | None = None
 
     # Environment Metadata
     service: str | None = Field(default=None, max_length=255)
@@ -29,11 +28,12 @@ class RawLogDTO(DBModel):
     request_id: str | None = Field(default=None, max_length=255)
     user_id: str | None = Field(default=None, max_length=255)
 
-    attributes: dict[str, Any] = Field(default_factory=dict)
+    # Custom Metadata
+    attributes: dict[str, str] = Field(default_factory=dict)
 
-    @classmethod
-    def from_log_event(cls, signature_id, log_event: LogEventDTO) -> "RawLogDTO":
-        return cls.model_validate({
-            **log_event.model_dump(include=cls.model_fields.keys()),
-            "id": signature_id,
-        })
+    # Log Signature
+    level: LogLevel
+    template: str = Field(min_length=1, max_length=10_000)
+    file: str | None = Field(default=None, max_length=1_000)
+    line: int | None = Field(default=None, ge=1)
+    method: str | None = Field(default=None, max_length=255)

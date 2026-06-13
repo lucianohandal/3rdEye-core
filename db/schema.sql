@@ -64,14 +64,19 @@ CREATE TABLE IF NOT EXISTS log_signatures (
     method TEXT NOT NULL,
     first_appearance_timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     first_appearance_commit TEXT,
-    log_level log_level_smallint NOT NULL
+    log_level log_level_smallint NOT NULL,
+
+    UNIQUE (org_id, template, line, file, method)
 );
 
 CREATE INDEX IF NOT EXISTS idx_log_signatures_id
 ON log_signatures (org_id, id);
 
-CREATE INDEX IF NOT EXISTS idx_log_signatures_org_file_method
-ON log_signatures (org_id, file, method);
+CREATE INDEX IF NOT EXISTS idx_log_signatures_org_template_file_method
+ON log_signatures (org_id, template, file, method);
+
+CREATE INDEX IF NOT EXISTS idx_log_signatures_org_template_line_file_method
+ON log_signatures (org_id, template, line, file, method);
 
 CREATE TABLE IF NOT EXISTS raw_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

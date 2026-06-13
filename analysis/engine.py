@@ -14,17 +14,17 @@ class AnalysisEngine:
 
     def evaluate(
         self,
-        snapshot: LogSummaryDTO,
+        summaries: list[LogSummaryDTO],
         baseline: BaselineSnapshot | None = None,
     ) -> list[AlertDTO]:
         baseline = baseline or BaselineSnapshot()
         findings: list[AlertDTO] = []
 
-        for rule in self.rules:
-            if not rule.enabled or rule.window != snapshot.window:
-                continue
-
-            findings.extend(self._evaluate_rule(rule, snapshot, baseline))
+        for summary in summaries:
+            for rule in self.rules:
+                if not rule.enabled or rule.window != summary.window:
+                    continue
+                findings.extend(self._evaluate_rule(rule, summary, baseline))
 
         return findings
 

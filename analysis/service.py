@@ -8,6 +8,7 @@ from analysis.rules import AnalysisRule, load_rules
 from db.PostgresDB import PostgresDB
 from db.LogSummaryDB import LogSummaryDB
 from util.dto.AlertDTO import AlertDTO
+from util.dto.LogSummaryDTO import LogSummaryDTO
 from util.enum.LogWindow import LogWindow
 
 
@@ -23,26 +24,16 @@ class AnalysisService:
         finding_db: PostgresDB | None = None,
     ) -> None:
         self.org_id = org_id
-        self.rules = list(rules) if rules is not None else load_rules(DEFAULT_RULES_PATH)
+        rules = list(rules) if rules is not None else load_rules(DEFAULT_RULES_PATH)
+        self.engine = AnalysisEngine(rules)
         self.summary_db = summary_db or LogSummaryDB(org_id)
         self.finding_db = finding_db or PostgresDB(org_id)
 
     async def evaluate_window(
         self,
         window: LogWindow,
-        end: datetime | None = None,
         baseline: BaselineSnapshot | None = None,
-    ) -> list[AlertDTO]:
-        summary = await self.summary_db.gen_log_summaries(window)
-        return AnalysisEngine(self.rules).evaluate(summary, baseline)
-
-    async def evaluate_and_store_window(
-        self,
-        window: LogWindow,
-        end: datetime | None = None,
-        baseline: BaselineSnapshot | None = None,
-    ) -> list[AlertDTO]:
-        summary = await self.summary_db.gen_log_summaries(window)
-        findings = AnalysisEngine(self.rules).evaluate(summary, baseline)
-        await self.finding_db.insert_many(findings, summary.start, summary.end)
-        return findings
+    ) -> None:
+        summaries: list[LogSummaryDTO] = await self.summary_db.get_log_summaries(window)
+        alerts: list[AlertDTO] = self.engine.evaluate(summaries, baseline)
+        await self.finding_db.insertmany(alerts)

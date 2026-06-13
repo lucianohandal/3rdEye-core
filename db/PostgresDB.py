@@ -1,7 +1,5 @@
 from typing import TypeVar
 
-from pydantic._internal import _model_construction
-
 from util.dto.DBModel import DBModel
 import asyncpg
 

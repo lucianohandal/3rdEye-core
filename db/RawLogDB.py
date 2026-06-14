@@ -31,24 +31,19 @@ class RawLogDB(PostgresDB):
         await self.updatemany(raw_logs)
         return None
 
-    async def get_log_signatures(self, raw_logs: list[RawLogDTO]) -> dict[tuple[str, int, str, str], UUID]:
-        keys = list({raw_log.signature_key() for raw_log in raw_logs})
-        args = [self.org_id]
-        placeholders = []
-
-        for key in keys:
-            start = len(args) + 1
-            placeholders.append(f"(${start}, ${start + 1}, ${start + 2}, ${start + 3})")
-            args.extend(key)
+    async def get_log_signatures(self, raw_logs: list[RawLogDTO]) -> dict[tuple[str, str, str, int], UUID]:
+        files = list({raw_log.file for raw_log in raw_logs})
+        templates = list({raw_log.template for raw_log in raw_logs})
 
         query = f"""
             SELECT id, template, line, file, method
             FROM log_signatures
             WHERE org_id = $1::uuid
-              AND (template, line, file, method) IN ({", ".join(placeholders)});
+              AND template = ANY($2::text[])
+              AND file = ANY($3::text[]);
         """
 
-        rows = await self.get(query, *args)
+        rows = await self.get(query, self.org_id, templates, files)
 
         return {
             (row["template"], row["line"], row["file"], row["method"]): row["id"]

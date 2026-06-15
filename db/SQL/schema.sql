@@ -46,9 +46,14 @@ CREATE TABLE IF NOT EXISTS holidays (
 CREATE TABLE IF NOT EXISTS api_keys (
     api_key UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    key_hash TEXT NOT NULL,
+    display_prefix TEXT NOT NULL,
+    name TEXT NULL,
     scopes TEXT[] NOT NULL DEFAULT ARRAY['logs:write'],
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    expires_at TIMESTAMPTZ NULL
+    expires_at TIMESTAMPTZ NULL,
+    revoked_at TIMESTAMPTZ NULL,
+    last_used_at TIMESTAMPTZ NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_api_key

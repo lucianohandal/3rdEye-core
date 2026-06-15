@@ -5,6 +5,7 @@ source =
     api
     db
     util
+    auth
 omit =
     tests/*
     .venv/*

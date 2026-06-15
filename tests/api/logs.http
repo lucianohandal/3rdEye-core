@@ -5,6 +5,7 @@
 POST http://127.0.0.1:8000/v1/logs
 Accept: application/json
 Content-Type: application/json
+Authorization: Bearer 3eye_live_00000000-0000-0000-0000-000000000001.test-secret
 
 [
   {
@@ -46,6 +47,7 @@ Content-Type: application/json
 POST http://127.0.0.1:8000/v1/logs
 Accept: application/json
 Content-Type: application/json
+Authorization: Bearer 3eye_live_00000000-0000-0000-0000-000000000001.test-secret
 
 []
 

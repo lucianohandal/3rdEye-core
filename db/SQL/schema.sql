@@ -57,8 +57,18 @@ ON api_keys (api_key);
 CREATE INDEX IF NOT EXISTS idx_api_keys_org_id
 ON api_keys (org_id);
 
-CREATE DOMAIN IF NOT EXISTS log_level_smallint AS SMALLINT
-CHECK (VALUE IN (10, 20, 30, 40, 50));
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_type
+        WHERE typname = 'log_level_smallint'
+    ) THEN
+        CREATE DOMAIN log_level_smallint AS SMALLINT
+        CHECK (VALUE IN (10, 20, 30, 40, 50));
+    END IF;
+END;
+$$;
 
 CREATE TABLE IF NOT EXISTS log_signatures (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

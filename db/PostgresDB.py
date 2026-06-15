@@ -1,4 +1,5 @@
 import os
+import json
 from collections.abc import Sequence
 from typing import Any, TypeVar
 
@@ -22,6 +23,7 @@ class PostgresDB:
                 dsn=PostgresDB.DATABASE_URL,
                 min_size=1,
                 max_size=10,
+                init=_init_connection,
             )
             PostgresDB._pool = pool
 
@@ -71,7 +73,7 @@ class PostgresDB:
         )
         distinct_fields = ", ".join(update_fields)
         distinct_values = ", ".join(placeholders[field] for field in update_fields)
-        values = [entry.values() for entry in entries]
+        values = [entry.get_values() for entry in entries]
 
         pool = await PostgresDB.get_pool()
 
@@ -160,3 +162,18 @@ class PostgresDB:
             return rows
 
         return [record_class.model_validate(dict(row)) for row in rows]
+
+
+async def _init_connection(conn: asyncpg.Connection) -> None:
+    await conn.set_type_codec(
+        "json",
+        encoder=json.dumps,
+        decoder=json.loads,
+        schema="pg_catalog",
+    )
+    await conn.set_type_codec(
+        "jsonb",
+        encoder=json.dumps,
+        decoder=json.loads,
+        schema="pg_catalog",
+    )

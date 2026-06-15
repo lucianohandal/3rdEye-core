@@ -8,6 +8,7 @@ source =
 omit =
     tests/*
     .venv/*
+    */__init__.py
 
 [report]
 show_missing = True

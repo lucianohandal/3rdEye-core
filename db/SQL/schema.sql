@@ -38,6 +38,11 @@ ON users (id);
 CREATE INDEX IF NOT EXISTS idx_users_org_id
 ON users (org_id);
 
+CREATE TABLE IF NOT EXISTS holidays (
+    holiday_date DATE PRIMARY KEY,
+    name TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS api_keys (
     api_key UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -159,6 +164,7 @@ CREATE TABLE IF NOT EXISTS log_summaries (
     time_window TEXT NOT NULL,
     start_time TIMESTAMPTZ NOT NULL,
 --     log_count INT NOT NULL DEFAULT 0,
+    seasonality TEXT[] NULL,
     claimed_at TIMESTAMPTZ NULL DEFAULT NULL,
     processed_at TIMESTAMPTZ NULL DEFAULT NULL,
 

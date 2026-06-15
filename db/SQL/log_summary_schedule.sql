@@ -11,6 +11,11 @@ VALUES
 ON CONFLICT (size)
 DO UPDATE SET time_delta = EXCLUDED.time_delta;
 
+CREATE TABLE IF NOT EXISTS holidays (
+    holiday_date DATE PRIMARY KEY,
+    name TEXT NOT NULL
+);
+
 CREATE OR REPLACE FUNCTION fill_log_summaries(summary_size TEXT)
 RETURNS void
 LANGUAGE sql
@@ -23,37 +28,71 @@ AS $$
         FROM time_window_sizes
         WHERE size = summary_size
     ),
-    summary_counts AS (
-        SELECT
+    summary_windows AS (
+        SELECT DISTINCT
             r.org_id,
             b.time_window,
             b.start_time,
-            COUNT(*)::INT AS log_count
+            NULLIF(
+                ARRAY_REMOVE(
+                    ARRAY[
+                        (
+                            SELECT h.name
+                            FROM holidays h
+                            WHERE h.holiday_date = b.start_time::DATE
+                        ),
+                        CASE
+                            WHEN EXTRACT(ISODOW FROM b.start_time) IN (6, 7)
+                            THEN 'weekend'
+                        END,
+                        CASE
+                            WHEN EXTRACT(ISODOW FROM b.start_time) BETWEEN 1 AND 5
+                             AND b.start_time::TIME >= TIME '08:00'
+                             AND b.start_time::TIME < TIME '18:00'
+                            THEN 'business_hours'
+                        END,
+                        CASE
+                            WHEN EXTRACT(DAY FROM b.start_time) = 1
+                            THEN 'month_start'
+                        END,
+                        CASE
+                            WHEN b.start_time::DATE = (
+                                DATE_TRUNC('month', b.start_time) + INTERVAL '1 month - 1 day'
+                            )::DATE
+                            THEN 'month_end'
+                        END
+                    ]::TEXT[],
+                    NULL
+                ),
+                ARRAY[]::TEXT[]
+            ) AS seasonality
         FROM bounds b
         JOIN raw_logs r
           ON r.timestamp >= b.start_time
          AND r.timestamp < b.end_time
-        GROUP BY r.org_id, b.time_window, b.start_time
     ),
-    inserted_summaries AS (
-        INSERT INTO log_summaries (org_id, time_window, start_time, log_count)
-        SELECT org_id, time_window, start_time, log_count
-        FROM summary_counts
-        ON CONFLICT (org_id, time_window, start_time) DO NOTHING
-        RETURNING id, org_id, time_window, start_time
+    upserted_summaries AS (
+        INSERT INTO log_summaries (org_id, time_window, start_time, seasonality)
+        SELECT org_id, time_window, start_time, seasonality
+        FROM summary_windows
+        ON CONFLICT (org_id, time_window, start_time)
+        DO UPDATE
+        SET seasonality = EXCLUDED.seasonality
+        WHERE log_summaries.seasonality IS DISTINCT FROM EXCLUDED.seasonality
+        RETURNING id, org_id, time_window, start_time, seasonality
     ),
     target_summaries AS (
         SELECT id, org_id, time_window, start_time
-        FROM inserted_summaries
+        FROM upserted_summaries
 
         UNION
 
         SELECT ls.id, ls.org_id, ls.time_window, ls.start_time
         FROM log_summaries ls
-        JOIN summary_counts sc
-          ON sc.org_id = ls.org_id
-         AND sc.time_window = ls.time_window
-         AND sc.start_time = ls.start_time
+        JOIN summary_windows sw
+          ON sw.org_id = ls.org_id
+         AND sw.time_window = ls.time_window
+         AND sw.start_time = ls.start_time
     ),
     signature_counts AS (
         SELECT

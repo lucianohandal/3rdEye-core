@@ -28,12 +28,14 @@ class AnalysisDB(PostgresDB):
                     ls.org_id,
                     ls.time_window,
                     ls.start_time,
+                    ls.seasonality
             )
             SELECT
                 u.id,
                 u.org_id,
                 u.time_window,
                 u.start_time,
+                u.seasonality,
                 lss.log_signature_id,
                 lss.log_level,
                 lss.log_count AS signature_log_count
@@ -59,6 +61,7 @@ class AnalysisDB(PostgresDB):
                     org_id=row["org_id"],
                     time_window=row["time_window"],
                     start_time=row["start_time"],
+                    seasonality=row["seasonality"],
                 )
                 summaries[summary_id] = summary
 

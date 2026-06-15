@@ -12,6 +12,7 @@ from util.functions import normalize_counts
 class LogSummaryDTO(DBModel):
     time_window: LogWindow
     start_time: datetime
+    seasonality: list[str] | None = None
     processed_at: datetime | None = None
 
     counts_by_level: dict[str, int] = PrivateAttr(default_factory=dict)

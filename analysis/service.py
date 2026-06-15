@@ -6,7 +6,7 @@ from util.dto.analysis.BaselineSnapshot import BaselineSnapshot
 from analysis.rules import AnalysisRule, load_rules
 from db.PostgresManager import get_analysis_db
 from util.dto.database.AlertDTO import AlertDTO
-from util.dto.database.LogSummaryDTO import LogSummaryDTO
+from util.dto.analysis.LogSummaryDTO import LogSummaryDTO
 from util.enum.LogWindow import LogWindow
 
 

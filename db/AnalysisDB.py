@@ -2,8 +2,7 @@ import datetime
 
 from db.PostgresDB import PostgresDB
 from util.dto.database.AlertDTO import AlertDTO
-from util.dto.database.LogSummaryDTO import LogSummaryDTO
-from util.enum.LogLevel import LogLevel
+from util.dto.analysis.LogSummaryDTO import LogSummaryDTO
 from util.enum.LogWindow import LogWindow
 
 
@@ -29,14 +28,12 @@ class AnalysisDB(PostgresDB):
                     ls.org_id,
                     ls.time_window,
                     ls.start_time,
-                    ls.log_count
             )
             SELECT
                 u.id,
                 u.org_id,
                 u.time_window,
                 u.start_time,
-                u.log_count,
                 lss.log_signature_id,
                 lss.log_level,
                 lss.log_count AS signature_log_count
@@ -50,22 +47,22 @@ class AnalysisDB(PostgresDB):
         summaries: dict[str, LogSummaryDTO] = {}
 
         for row in rows or []:
+            if row["log_signature_id"] is None:
+                continue
+
             summary_id = str(row["id"])
             summary = summaries.get(summary_id)
+
             if summary is None:
                 summary = LogSummaryDTO(
                     id=row["id"],
                     org_id=row["org_id"],
                     time_window=row["time_window"],
                     start_time=row["start_time"],
-                    log_count=row["log_count"],
                 )
                 summaries[summary_id] = summary
 
-            if row["log_signature_id"] is None:
-                continue
-
-            level = LogLevel(row["log_level"]).name
+            level = row["log_level"]
             source_id = str(row["log_signature_id"])
             count = row["signature_log_count"]
 
@@ -76,15 +73,19 @@ class AnalysisDB(PostgresDB):
         return list(summaries.values())
 
     async def mark_processed(self, summaries: list[LogSummaryDTO]) -> None:
-        if not summaries:
+        summary_ids = [summary.id for summary in summaries]
+        if not summary_ids:
             return None
 
-        now = datetime.datetime.now(datetime.timezone.utc)
-
-        for summary in summaries:
-            summary.processed_at = now
-
-        await self.updatemany(summaries)
+        await self.execute(
+            """
+            UPDATE log_summaries
+            SET processed_at = NOW(),
+                claimed_at   = NULL
+            WHERE id = ANY ($1::uuid[])
+            """,
+            summary_ids,
+        )
         return None
 
     async def submit_alerts(self, alerts: list[AlertDTO]) -> None:

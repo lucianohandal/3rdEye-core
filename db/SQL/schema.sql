@@ -158,8 +158,7 @@ CREATE TABLE IF NOT EXISTS log_summaries (
 
     time_window TEXT NOT NULL,
     start_time TIMESTAMPTZ NOT NULL,
-    -- log_signature_ids UUID[] NOT NULL,
-    log_count INT NOT NULL DEFAULT 0,
+--     log_count INT NOT NULL DEFAULT 0,
     claimed_at TIMESTAMPTZ NULL DEFAULT NULL,
     processed_at TIMESTAMPTZ NULL DEFAULT NULL,
 

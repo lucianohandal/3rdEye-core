@@ -1,4 +1,4 @@
-# Test your FastAPI endpoints
+# FastAPI log ingestion examples used by tests/api/logs.py
 
 ###
 
@@ -8,9 +8,8 @@ Content-Type: application/json
 
 [
   {
-    "level": "INFO",
-    "message": "User logged in",
-    "args": ["user-local-001"],
+    "level": 20,
+    "message": "User user-local-001 logged in",
     "template": "User {user_id} logged in",
     "timestamp": "2026-06-08T19:07:36.123456+00:00",
     "service": "api",
@@ -27,7 +26,7 @@ Content-Type: application/json
     "stack": "Traceback placeholder",
     "attributes": {
       "route": "/login",
-      "method": "POST"
+      "http_method": "POST"
     }
   }
 ]

@@ -1,0 +1,17 @@
+[run]
+branch = True
+source =
+    analysis
+    api
+    db
+    util
+omit =
+    tests/*
+    .venv/*
+
+[report]
+show_missing = True
+skip_empty = True
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:

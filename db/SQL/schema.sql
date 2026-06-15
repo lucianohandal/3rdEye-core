@@ -183,6 +183,21 @@ CREATE TABLE IF NOT EXISTS log_summary_signatures (
     PRIMARY KEY (summary_id, log_signature_id)
 );
 
+CREATE TABLE IF NOT EXISTS metric_baselines (
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    time_window TEXT NOT NULL,
+    seasonality_key TEXT NOT NULL,
+    metric_key TEXT NOT NULL,
+    sample_count INT NOT NULL DEFAULT 0,
+    mean DOUBLE PRECISION NOT NULL DEFAULT 0,
+    m2 DOUBLE PRECISION NOT NULL DEFAULT 0,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT valid_metric_baseline_window CHECK (time_window IN ('xs', 's', 'm', 'l', 'xl', 'xxl')),
+
+    PRIMARY KEY (org_id, time_window, seasonality_key, metric_key)
+);
+
 CREATE TABLE IF NOT EXISTS time_window_sizes (
     size TEXT PRIMARY KEY,
     time_delta INTERVAL NOT NULL

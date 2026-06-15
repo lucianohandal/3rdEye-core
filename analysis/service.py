@@ -30,7 +30,17 @@ class AnalysisService:
         baseline: BaselineSnapshot | None = None,
     ) -> list[AlertDTO]:
         summaries: list[LogSummaryDTO] = await self.db.get_log_summaries(window)
-        alerts: list[AlertDTO] = self.engine.evaluate(summaries, baseline)
-        await self.db.insertmany(alerts)
-        await self.db.mark_processed(summaries)
+        alerts: list[AlertDTO] = []
+
+        for summary in summaries:
+            summary_baseline = baseline
+            if summary_baseline is None:
+                summary_baseline = await self.db.get_baseline(
+                    summary.time_window,
+                    org_id=str(summary.org_id),
+                    seasonality=summary.seasonality,
+                )
+            alerts.extend(self.engine.evaluate([summary], summary_baseline))
+
+        await self.db.complete_analysis(summaries, alerts)
         return alerts

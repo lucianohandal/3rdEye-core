@@ -1,4 +1,3 @@
-from uuid import UUID
 from datetime import datetime
 from typing import Any
 
@@ -15,9 +14,21 @@ class LogSummaryDTO(DBModel):
     seasonality: list[str] | None = None
     processed_at: datetime | None = None
 
-    counts_by_level: dict[str, int] = PrivateAttr(default_factory=dict)
-    counts_by_source_id: dict[str, int] = PrivateAttr(default_factory=dict)
-    source_id_by_log_level: dict[UUID, set[str]] = PrivateAttr(default_factory=dict)
+    _counts_by_level: dict[str, int] = PrivateAttr(default_factory=dict)
+    _counts_by_source_id: dict[str, int] = PrivateAttr(default_factory=dict)
+    _source_id_by_log_level: dict[str, set[str]] = PrivateAttr(default_factory=dict)
+
+    @property
+    def counts_by_level(self) -> dict[str, int]:
+        return self._counts_by_level
+
+    @property
+    def counts_by_source_id(self) -> dict[str, int]:
+        return self._counts_by_source_id
+
+    @property
+    def source_id_by_log_level(self) -> dict[str, set[str]]:
+        return self._source_id_by_log_level
 
     @property
     def log_count(self) -> int:

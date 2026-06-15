@@ -27,23 +27,29 @@ class PostgresDB:
 
         return pool
 
-    async def insertmany(self, entries: list[DBModel]) -> None:
+    async def insertmany(
+        self,
+        entries: list[DBModel],
+        conn: asyncpg.Connection | None = None,
+    ) -> None:
         if not entries:
             return
         model_class = entries[0].__class__
         fields = model_class.fields()
         values = [tuple(entry.db_dump().get(field) for field in fields) for entry in entries]
 
-        pool = await PostgresDB.get_pool()
+        query = f"""
+            INSERT INTO {model_class.table_name()} ({",".join(fields)})
+            VALUES ({model_class.place_holders(include=set(fields))})
+        """
 
-        async with pool.acquire() as conn:
-            await conn.executemany(
-                f"""
-                INSERT INTO {model_class.table_name()} ({",".join(fields)})
-                VALUES ({model_class.place_holders(include=set(fields))})
-                """,
-                values,
-            )
+        if conn is None:
+            pool = await PostgresDB.get_pool()
+            async with pool.acquire() as pooled_conn:
+                await pooled_conn.executemany(query, values)
+            return
+
+        await conn.executemany(query, values)
 
     async def updatemany(self, entries: list[DBModel]) -> None:
         if not entries:

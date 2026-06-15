@@ -1,3 +1,5 @@
+import datetime
+
 from db.PostgresDB import PostgresDB
 from util.dto.database.AlertDTO import AlertDTO
 from util.dto.database.LogSummaryDTO import LogSummaryDTO
@@ -74,20 +76,15 @@ class AnalysisDB(PostgresDB):
         return list(summaries.values())
 
     async def mark_processed(self, summaries: list[LogSummaryDTO]) -> None:
-        summary_ids = [summary.id for summary in summaries]
-        if not summary_ids:
+        if not summaries:
             return None
 
-        await self.execute(
-            """
-            UPDATE log_summaries
-            SET processed_at = NOW(),
-                claimed_at = NULL
-            WHERE id = ANY($1::uuid[])
-            """,
-            summary_ids,
-        )
-        self.updatemany()
+        now = datetime.datetime.now(datetime.timezone.utc)
+
+        for summary in summaries:
+            summary.processed_at = now
+
+        await self.updatemany(summaries)
         return None
 
     async def submit_alerts(self, alerts: list[AlertDTO]) -> None:

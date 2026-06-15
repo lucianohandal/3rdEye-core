@@ -52,15 +52,20 @@ class PostgresDB:
         model_class = entries[0].__class__
 
         table = model_class.table_name()
-        fields = model_class.update_fields()
+        fields = model_class.fields()
+        update_fields = model_class.update_fields()
+        placeholders = {
+            field: f"${i}"
+            for i, field in enumerate(fields, start=1)
+        }
 
-        id_placeholder = len(fields) + 1
-        values = []
-        for entry in entries:
-            data = entry.db_dump()
-            update_values = [data[field] for field in fields]
-            update_values.append(data["id"])
-            values.append(tuple(update_values))
+        set_clause = ", ".join(
+            f"{field} = {placeholders[field]}"
+            for field in update_fields
+        )
+        distinct_fields = ", ".join(update_fields)
+        distinct_values = ", ".join(placeholders[field] for field in update_fields)
+        values = [entry.values() for entry in entries]
 
         pool = await PostgresDB.get_pool()
 
@@ -68,8 +73,9 @@ class PostgresDB:
             await conn.executemany(
                 f"""
                 UPDATE {table}
-                SET {model_class.set_clause(include=set(fields))}
-                WHERE id = ${id_placeholder}
+                SET {set_clause}
+                WHERE id = {placeholders["id"]}
+                  AND ({distinct_fields}) IS DISTINCT FROM ({distinct_values})
                 """,
                 values,
             )

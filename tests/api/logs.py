@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 from urllib.parse import urlparse
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
@@ -24,6 +25,16 @@ class StubRawLogsDB:
 class FailingRawLogsDB:
     async def insert_raw_logs(self, log_events):
         raise RuntimeError("database unavailable")
+
+
+class StubUsersDB:
+    def __init__(self, org_id=None) -> None:
+        self.org_id = org_id
+        self.api_keys = []
+
+    async def get_org_id(self, api_key):
+        self.api_keys.append(api_key)
+        return self.org_id
 
 
 def parse_http_examples(path: Path) -> list[dict[str, Any]]:
@@ -77,11 +88,15 @@ class LogsApiTestCase(unittest.TestCase):
 
     def test_logs_http_examples_run_against_api(self) -> None:
         db = StubRawLogsDB()
+        users_db = StubUsersDB(org_id="project_context.org_id")
         examples = parse_http_examples(HTTP_EXAMPLES)
 
         self.assertEqual(len(examples), 2)
 
-        with patch("api.v1.logs.get_rawlogs_db", return_value=db):
+        with (
+            patch("api.v1.logs.get_users_db", return_value=users_db),
+            patch("api.v1.logs.get_rawlogs_db", return_value=db),
+        ):
             accepted = self.client.request(**examples[0])
             empty = self.client.request(**examples[1])
 
@@ -100,27 +115,57 @@ class LogsApiTestCase(unittest.TestCase):
 
     def test_ingest_logs_uses_raw_logs_db_for_non_empty_payloads(self) -> None:
         db = StubRawLogsDB()
+        org_id = uuid4()
+        users_db = StubUsersDB(org_id=org_id)
         payload = parse_http_examples(HTTP_EXAMPLES)[0]["json"]
 
-        with patch("api.v1.logs.get_rawlogs_db", return_value=db) as get_db:
+        with (
+            patch("api.v1.logs.get_users_db", return_value=users_db) as get_users_db,
+            patch("api.v1.logs.get_rawlogs_db", return_value=db) as get_db,
+        ):
             response = self.client.post("/v1/logs", json=payload)
 
         self.assertEqual(response.status_code, 202)
-        get_db.assert_called_once_with("project_context.org_id")
+        get_users_db.assert_called_once_with()
+        self.assertEqual(users_db.api_keys, ["project_context.api_key_id"])
+        get_db.assert_called_once_with(org_id)
         self.assertEqual(len(db.inserted_batches), 1)
         self.assertEqual(db.inserted_batches[0][0].signature_key(), ("auth.py", "User {user_id} logged in", "login", 42))
 
     def test_ingest_logs_skips_db_for_empty_payloads(self) -> None:
-        with patch("api.v1.logs.get_rawlogs_db") as get_db:
+        with (
+            patch("api.v1.logs.get_users_db") as get_users_db,
+            patch("api.v1.logs.get_rawlogs_db") as get_db,
+        ):
             response = self.client.post("/v1/logs", json=[])
 
         self.assertEqual(response.status_code, 204)
+        get_users_db.assert_not_called()
+        get_db.assert_not_called()
+
+    def test_ingest_logs_rejects_unknown_api_key_before_raw_log_db_access(self) -> None:
+        payload = parse_http_examples(HTTP_EXAMPLES)[0]["json"]
+        users_db = StubUsersDB(org_id=None)
+
+        with (
+            patch("api.v1.logs.get_users_db", return_value=users_db),
+            patch("api.v1.logs.get_rawlogs_db") as get_db,
+        ):
+            response = self.client.post("/v1/logs", json=payload)
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json(), {"message": "Invalid API key"})
+        self.assertEqual(users_db.api_keys, ["project_context.api_key_id"])
         get_db.assert_not_called()
 
     def test_ingest_logs_surfaces_db_failures(self) -> None:
         payload = parse_http_examples(HTTP_EXAMPLES)[0]["json"]
+        users_db = StubUsersDB(org_id="project_context.org_id")
 
-        with patch("api.v1.logs.get_rawlogs_db", return_value=FailingRawLogsDB()):
+        with (
+            patch("api.v1.logs.get_users_db", return_value=users_db),
+            patch("api.v1.logs.get_rawlogs_db", return_value=FailingRawLogsDB()),
+        ):
             with self.assertRaises(RuntimeError):
                 self.client.post("/v1/logs", json=payload)
 
@@ -132,10 +177,14 @@ class LogsApiTestCase(unittest.TestCase):
             }
         ]
 
-        with patch("api.v1.logs.get_rawlogs_db") as get_db:
+        with (
+            patch("api.v1.logs.get_users_db") as get_users_db,
+            patch("api.v1.logs.get_rawlogs_db") as get_db,
+        ):
             response = self.client.post("/v1/logs", json=invalid_payload)
 
         self.assertEqual(response.status_code, 422)
+        get_users_db.assert_not_called()
         get_db.assert_not_called()
 
 

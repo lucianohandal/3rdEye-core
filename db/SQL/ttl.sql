@@ -25,8 +25,8 @@ AS $$
       AND closed_at < NOW() - INTERVAL '90 days';
 
     DELETE FROM api_keys
-    WHERE revoked_at IS NOT NULL
-      AND revoked_at < NOW() - INTERVAL '90 days';
+    WHERE expires_at IS NOT NULL
+      AND expires_at < NOW() - INTERVAL '90 days';
 $$;
 
 DO $$

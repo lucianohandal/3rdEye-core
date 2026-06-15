@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS api_keys (
     org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     scopes TEXT[] NOT NULL DEFAULT ARRAY['logs:write'],
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    revoked_at TIMESTAMPTZ NULL
+    expires_at TIMESTAMPTZ NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_api_key

@@ -6,7 +6,7 @@ from util.enum.LogWindow import LogWindow
 
 
 class AnalysisDB(PostgresDB):
-    async def get_log_summaries(self, window: LogWindow) -> list[LogSummaryDTO]:
+    async def get_log_summaries(self, org_id: str, window: LogWindow) -> list[LogSummaryDTO]:
         query = """
             WITH claimed AS (
                 SELECT id
@@ -28,11 +28,15 @@ class AnalysisDB(PostgresDB):
                 WHERE ls.id = claimed.id
                 RETURNING
                     ls.id,
+                    ls.org_id,
+                    ls.time_window,
                     ls.start_time,
                     ls.log_count
             )
             SELECT
                 u.id,
+                u.org_id,
+                u.time_window,
                 u.start_time,
                 u.log_count,
                 lss.log_signature_id,
@@ -43,7 +47,7 @@ class AnalysisDB(PostgresDB):
               ON lss.summary_id = u.id
             ORDER BY u.start_time, u.id
         """
-        rows = await self.get(query, self.org_id, window.value)
+        rows = await self.get(query, org_id, window.value)
 
         summaries: dict[str, LogSummaryDTO] = {}
 
@@ -53,7 +57,8 @@ class AnalysisDB(PostgresDB):
             if summary is None:
                 summary = LogSummaryDTO(
                     id=row["id"],
-                    window=window,
+                    org_id=row["org_id"],
+                    time_window=row["time_window"],
                     start_time=row["start_time"],
                     log_count=row["log_count"],
                 )
@@ -73,7 +78,7 @@ class AnalysisDB(PostgresDB):
         return list(summaries.values())
 
     async def mark_processed(self, summaries: list[LogSummaryDTO]) -> None:
-        summary_ids = [summary.id for summary in summaries if summary.id is not None]
+        summary_ids = [summary.id for summary in summaries]
         if not summary_ids:
             return None
 
@@ -82,10 +87,8 @@ class AnalysisDB(PostgresDB):
             UPDATE log_summaries
             SET processed_at = NOW(),
                 claimed_at = NULL
-            WHERE org_id = $1::uuid
-              AND id = ANY($2::uuid[])
+            WHERE id = ANY($1::uuid[])
             """,
-            self.org_id,
             summary_ids,
         )
         return None

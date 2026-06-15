@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -10,7 +10,7 @@ from util.dto.database.DBModel import DBModel
 
 class RawLogDTO(DBModel):
     message: str
-    timestamp: datetime | None = None
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     stack: str | None = None
 
     # DB Metadata
@@ -37,4 +37,5 @@ class RawLogDTO(DBModel):
         data.update(overrides)
         data["id"] = uuid4()
         data["org_id"] = org_id
+        data["signature_id"] = signature_id
         return cls.model_validate(data)

@@ -1,8 +1,7 @@
 from datetime import datetime
 from typing import Any
-from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, PrivateAttr
 
 from util.dto.database.DBModel import DBModel
 from util.enum.LogWindow import LogWindow
@@ -10,12 +9,31 @@ from util.functions import normalize_counts
 
 
 class LogSummaryDTO(DBModel):
-    window: LogWindow
+    time_window: LogWindow
     start_time: datetime
     log_count: int = Field(default=0, ge=0)
-    counts_by_level: dict[str, int] = Field(default_factory=dict)
-    counts_by_source_id: dict[str, int] = Field(default_factory=dict)
-    source_id_by_log_level: dict[str, set[str]] = Field(default_factory=dict)
+    claimed_at: datetime | None = None
+    processed_at: datetime | None = None
+
+    _counts_by_level: dict[str, int] = PrivateAttr(default_factory=dict)
+    _counts_by_source_id: dict[str, int] = PrivateAttr(default_factory=dict)
+    _source_id_by_log_level: dict[str, set[str]] = PrivateAttr(default_factory=dict)
+
+    @classmethod
+    def table_name(cls) -> str:
+        return "log_summaries"
+
+    @property
+    def counts_by_level(self) -> dict[str, int]:
+        return self._counts_by_level
+
+    @property
+    def counts_by_source_id(self) -> dict[str, int]:
+        return self._counts_by_source_id
+
+    @property
+    def source_id_by_log_level(self) -> dict[str, set[str]]:
+        return self._source_id_by_log_level
 
     def metric_value(self, metric: str, filters: dict[str, Any] | None = None) -> float:
         filters = filters or {}

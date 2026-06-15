@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Any
 
 from pydantic import Field
@@ -12,3 +13,5 @@ class AlertDTO(DBModel):
     observed_value: float | None = None
     expected_value: float | None = None
     details: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    closed_at: datetime | None = None

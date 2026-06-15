@@ -11,9 +11,8 @@ TPostgresDB = TypeVar("TPostgresDB", bound=PostgresDB)
 
 class PostgresManager:
     def __init__(self):
-        self._postgress_dbs: dict[str, PostgresDB] = {}
+        self._analysis_db = AnalysisDB()
         self._rawlogs_dbs: dict[str, RawLogDB] = {}
-        self._summary_dbs: dict[str, AnalysisDB] = {}
         self._lock = RLock()
 
     def _get_or_create(
@@ -31,8 +30,8 @@ class PostgresManager:
     def get_rawlogs_db(self, org_id: str) -> RawLogDB:
         return self._get_or_create(self._rawlogs_dbs, org_id, RawLogDB)
 
-    def get_analysis_db(self, org_id: str = "default") -> AnalysisDB:
-        return self._get_or_create(self._summary_dbs, org_id, AnalysisDB)
+    def get_analysis_db(self) -> AnalysisDB:
+        return self._analysis_db
 
 
 _manager = PostgresManager()
@@ -41,5 +40,5 @@ def get_rawlogs_db(org_id: str) -> RawLogDB:
     return _manager.get_rawlogs_db(org_id)
 
 
-def get_analysis_db(org_id: str = "default") -> AnalysisDB:
-    return _manager.get_analysis_db(org_id)
+def get_analysis_db() -> AnalysisDB:
+    return _manager.get_analysis_db()

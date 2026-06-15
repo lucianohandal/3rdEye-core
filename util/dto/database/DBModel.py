@@ -1,10 +1,12 @@
-from pydantic import BaseModel
-from uuid import UUID
+from uuid import UUID, uuid4
+
+from pydantic import BaseModel, Field
+
 from util.functions import to_snake_case
 
 
 class DBModel(BaseModel):
-    id: UUID
+    id: UUID = Field(default_factory=uuid4)
     org_id: UUID
 
     def db_dump(self):
@@ -12,10 +14,6 @@ class DBModel(BaseModel):
 
     def values(self):
         return tuple(self.db_dump().values())
-
-    def update_values(self, org_id: str):
-        data = self.db_dump()
-        return tuple(data[field] for field in self.update_fields()) + (data["id"], org_id)
 
     @classmethod
     def fields(

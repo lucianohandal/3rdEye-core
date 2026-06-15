@@ -24,7 +24,8 @@ class RawLogDB(PostgresDB):
                 raw_logs.append(RawLogDTO.from_log_event(log_event, self.org_id, signatures[key]))
                 continue
 
-            new_signatures[key] = new_signatures.get(key, LogSignatureDTO.from_log_event(log_event, self.org_id))
+            if key not in new_signatures:
+                new_signatures[key] = LogSignatureDTO.from_log_event(log_event, self.org_id)
 
             if log_event.timestamp < new_signatures[key].first_appearance_timestamp:
                 new_signatures[key].first_appearance_timestamp = log_event.timestamp
@@ -33,7 +34,7 @@ class RawLogDB(PostgresDB):
             raw_logs.append(RawLogDTO.from_log_event(log_event, self.org_id, new_signatures[key].id))
 
         await self.insertmany(list(new_signatures.values()))
-        await self.updatemany(raw_logs)
+        await self.insertmany(raw_logs)
         return None
 
     async def get_log_signatures(self, log_events: list[LogEventDTO]) -> dict[tuple[str, str, str, int], UUID]:
@@ -51,6 +52,6 @@ class RawLogDB(PostgresDB):
         rows = await self.get(query, self.org_id, templates, files)
 
         return {
-            (row["template"], row["line"], row["file"], row["method"]): row["id"]
+            (row["file"], row["template"], row["method"], row["line"]): row["id"]
             for row in rows or []
         }

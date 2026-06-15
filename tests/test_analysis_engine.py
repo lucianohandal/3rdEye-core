@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from uuid import uuid4
 
 from analysis.engine import AnalysisEngine
 from analysis.models import BaselineSnapshot, ExpectedPattern, MetricBaseline
@@ -8,13 +9,22 @@ from util.enum.Severity import Severity
 
 
 def snapshot(window: str, **overrides) -> LogSummaryDTO:
+    counts_by_level = overrides.pop("counts_by_level", {})
+    counts_by_source_id = overrides.pop("counts_by_source_id", {})
+    source_id_by_log_level = overrides.pop("source_id_by_log_level", {})
     values = {
-        "window": window,
+        "id": uuid4(),
+        "org_id": uuid4(),
+        "time_window": window,
         "start_time": datetime(2026, 6, 10, 12, 0, tzinfo=timezone.utc),
         "log_count": 0,
     }
     values.update(overrides)
-    return LogSummaryDTO(**values)
+    summary = LogSummaryDTO(**values)
+    summary.counts_by_level.update(counts_by_level)
+    summary.counts_by_source_id.update(counts_by_source_id)
+    summary.source_id_by_log_level.update(source_id_by_log_level)
+    return summary
 
 
 def test_threshold_rule_matches_fatal_logs() -> None:

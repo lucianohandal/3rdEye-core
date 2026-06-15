@@ -56,7 +56,10 @@ class PostgresDB:
 
         id_placeholder = len(fields) + 1
         org_placeholder = len(fields) + 2
-        values = [entry.update_values(self.org_id) for entry in entries]
+        values = [
+            tuple(data[field] for field in fields) + (data["id"], data["org_id"])
+            for data in (entry.db_dump() for entry in entries)
+        ]
 
         pool = await PostgresDB.get_pool()
 

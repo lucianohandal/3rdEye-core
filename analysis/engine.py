@@ -26,7 +26,7 @@ class AnalysisEngine:
         findings: list[AlertDTO] = []
 
         for summary in summaries:
-            for rule in self.rules_by_window.get(summary.window, []):
+            for rule in self.rules_by_window.get(summary.time_window, []):
                 findings.extend(self._evaluate_rule(rule, summary, baseline))
 
         return findings
@@ -64,6 +64,7 @@ def _evaluate_threshold(rule: AnalysisRule, snapshot: LogSummaryDTO) -> AlertDTO
         return None
 
     return AlertDTO(
+        org_id=snapshot.org_id,
         rule_id=rule.id,
         severity=rule.severity,
         message=f"{rule.id} matched: observed {observed:g} {condition.operator.value} {condition.value:g}",
@@ -107,6 +108,7 @@ def _evaluate_anomaly(
         details["z_score"] = z_score
 
     return AlertDTO(
+        org_id=snapshot.org_id,
         rule_id=rule.id,
         severity=rule.severity,
         message=f"{rule.id} matched: {metric_key} moved from {expected:g} to {observed:g}",
@@ -155,6 +157,7 @@ def _evaluate_group_anomaly(
 
         findings.append(
             AlertDTO(
+                org_id=snapshot.org_id,
                 rule_id=rule.id,
                 severity=rule.severity,
                 message=f"{rule.id} matched for {group_key}: {observed:.3f} vs expected {expected:.3f}",
@@ -184,6 +187,7 @@ def _evaluate_distribution_shift(
         return None
 
     return AlertDTO(
+        org_id=snapshot.org_id,
         rule_id=rule.id,
         severity=rule.severity,
         message=f"{rule.id} matched: {rule.metric} shifted by {distance:.3f}",
@@ -217,6 +221,7 @@ def _evaluate_missing_expected_pattern(
         return None
 
     return AlertDTO(
+        org_id=snapshot.org_id,
         rule_id=rule.id,
         severity=rule.severity,
         message=f"{rule.id} matched: {len(missing)} expected source(s) missing",

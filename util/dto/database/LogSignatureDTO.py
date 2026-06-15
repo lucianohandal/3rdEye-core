@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
-from uuid import uuid4, UUID
+from uuid import UUID, uuid4
 
 from util.dto.api.LogEventDTO import LogEventDTO
 from util.dto.database.DBModel import DBModel
@@ -24,4 +24,5 @@ class LogSignatureDTO(DBModel):
         data["org_id"] = org_id
         data["first_appearance_timestamp"] = log_event.timestamp
         data["first_appearance_commit"] = log_event.git_sha
+        data["log_level"] = log_event.level
         return cls.model_validate(data)

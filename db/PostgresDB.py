@@ -55,11 +55,12 @@ class PostgresDB:
         fields = model_class.update_fields()
 
         id_placeholder = len(fields) + 1
-        org_placeholder = len(fields) + 2
-        values = [
-            tuple(data[field] for field in fields) + (data["id"], data["org_id"])
-            for data in (entry.db_dump() for entry in entries)
-        ]
+        values = []
+        for entry in entries:
+            data = entry.db_dump()
+            update_values = [data[field] for field in fields]
+            update_values.append(data["id"])
+            values.append(tuple(update_values))
 
         pool = await PostgresDB.get_pool()
 
@@ -69,7 +70,6 @@ class PostgresDB:
                 UPDATE {table}
                 SET {model_class.set_clause(include=set(fields))}
                 WHERE id = ${id_placeholder}
-                  AND org_id = ${org_placeholder}
                 """,
                 values,
             )

@@ -12,7 +12,7 @@ class DBModel(BaseModel):
     def db_dump(self):
         return self.model_dump(mode="python")
 
-    def values(self):
+    def get_values(self):
         return tuple(self.db_dump().values())
 
     @classmethod

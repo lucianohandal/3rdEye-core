@@ -6,18 +6,14 @@ from util.enum.LogWindow import LogWindow
 
 
 class AnalysisDB(PostgresDB):
-    async def get_log_summaries(self, org_id: str, window: LogWindow) -> list[LogSummaryDTO]:
+    async def get_log_summaries(self, window: LogWindow) -> list[LogSummaryDTO]:
         query = """
             WITH claimed AS (
                 SELECT id
                 FROM log_summaries
-                WHERE org_id = $1::uuid
-                  AND time_window = $2
+                WHERE time_window = $1
                   AND processed_at IS NULL
-                  AND (
-                      claimed_at IS NULL
-                      OR claimed_at < NOW() - INTERVAL '15 minutes'
-                  )
+                  AND claimed_at IS NULL
                 ORDER BY start_time
                 FOR UPDATE SKIP LOCKED
             ),
@@ -47,7 +43,7 @@ class AnalysisDB(PostgresDB):
               ON lss.summary_id = u.id
             ORDER BY u.start_time, u.id
         """
-        rows = await self.get(query, org_id, window.value)
+        rows = await self.get(query, window.value)
 
         summaries: dict[str, LogSummaryDTO] = {}
 
@@ -91,6 +87,7 @@ class AnalysisDB(PostgresDB):
             """,
             summary_ids,
         )
+        self.updatemany()
         return None
 
     async def submit_alerts(self, alerts: list[AlertDTO]) -> None:

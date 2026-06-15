@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Iterable
 
 from analysis.engine import AnalysisEngine
-from analysis.models import BaselineSnapshot
+from util.dto.analysis.BaselineSnapshot import BaselineSnapshot
 from analysis.rules import AnalysisRule, load_rules
 from db.PostgresManager import get_analysis_db
 from util.dto.database.AlertDTO import AlertDTO

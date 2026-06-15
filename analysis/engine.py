@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from math import isfinite
 
-from analysis.models import BaselineSnapshot
+from util.dto.analysis.BaselineSnapshot import BaselineSnapshot
 from analysis.rules import AnalysisRule, RuleCondition
 from util.dto.database.AlertDTO import AlertDTO
 from util.dto.database.LogSummaryDTO import LogSummaryDTO

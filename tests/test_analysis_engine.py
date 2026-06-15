@@ -2,8 +2,10 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from analysis.engine import AnalysisEngine
-from analysis.models import BaselineSnapshot, ExpectedPattern, MetricBaseline
 from analysis.rules import AnalysisRule, load_rules
+from util.dto.analysis.BaselineSnapshot import BaselineSnapshot
+from util.dto.analysis.ExpectedPattern import ExpectedPattern
+from util.dto.analysis.MetricBaseline import MetricBaseline
 from util.dto.database.LogSummaryDTO import LogSummaryDTO
 from util.enum.Severity import Severity
 

@@ -1,17 +1,20 @@
-import os
 import json
 from collections.abc import Sequence
 from typing import Any, TypeVar
 
 import asyncpg
 
+from configs import get_config
 from util.dto.database.DBModel import DBModel
 
 
 TDBModel = TypeVar("TDBModel", bound=DBModel)
 
 class PostgresDB:
-    DATABASE_URL = os.environ.get("DB_URL", "DB_URL")
+    _database_config = get_config().database
+    DATABASE_URL = _database_config.url
+    POOL_MIN_SIZE = _database_config.pool_min_size
+    POOL_MAX_SIZE = _database_config.pool_max_size
     _pool: asyncpg.Pool | None = None
 
     @staticmethod
@@ -21,8 +24,8 @@ class PostgresDB:
         if pool is None:
             pool = await asyncpg.create_pool(
                 dsn=PostgresDB.DATABASE_URL,
-                min_size=1,
-                max_size=10,
+                min_size=PostgresDB.POOL_MIN_SIZE,
+                max_size=PostgresDB.POOL_MAX_SIZE,
                 init=_init_connection,
             )
             PostgresDB._pool = pool
@@ -60,11 +63,11 @@ class PostgresDB:
         model_class = entries[0].__class__
 
         table = model_class.table_name()
-        fields = model_class.fields()
         update_fields = model_class.update_fields()
+        value_fields = ["id", *update_fields]
         placeholders = {
             field: f"${i}"
-            for i, field in enumerate(fields, start=1)
+            for i, field in enumerate(value_fields, start=1)
         }
 
         set_clause = ", ".join(
@@ -73,7 +76,10 @@ class PostgresDB:
         )
         distinct_fields = ", ".join(update_fields)
         distinct_values = ", ".join(placeholders[field] for field in update_fields)
-        values = [entry.get_values() for entry in entries]
+        values = [
+            tuple(entry.db_dump().get(field) for field in value_fields)
+            for entry in entries
+        ]
 
         pool = await PostgresDB.get_pool()
 

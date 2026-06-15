@@ -4,18 +4,24 @@ import base64
 import hashlib
 import hmac
 import json
-import os
 import time
 from dataclasses import dataclass
 from typing import Any, Literal
 from uuid import UUID
 
+from configs import get_config
 
-API_KEY_PREFIX = "3eye_live_"
-API_KEY_HASH_ALGORITHM = "hmac-sha256"
-DEFAULT_API_KEY_SCOPE = "logs:write"
-JWT_ALGORITHM = "HS256"
-LOCAL_AUTH_SECRET = "3rdeye-local-development-secret"
+
+_auth_config = get_config().auth
+
+API_KEY_PREFIX = _auth_config.api_key.prefix
+API_KEY_HASH_ALGORITHM = _auth_config.api_key.hash_algorithm
+DEFAULT_API_KEY_SCOPE = _auth_config.api_key.default_scope
+JWT_ALGORITHM = _auth_config.jwt.algorithm
+JWT_ISSUER = _auth_config.jwt.issuer
+JWT_AUDIENCE = _auth_config.jwt.audience
+JWT_LEEWAY_SECONDS = _auth_config.jwt.leeway_seconds
+LOCAL_AUTH_SECRET = _auth_config.local_auth_secret
 
 
 class AuthError(Exception):
@@ -43,9 +49,9 @@ class ParsedAPIKey:
 @dataclass(frozen=True)
 class JWTSettings:
     secret: str
-    issuer: str = "3rd-eye"
-    audience: str = "3rd-eye-api"
-    leeway_seconds: int = 0
+    issuer: str = JWT_ISSUER
+    audience: str = JWT_AUDIENCE
+    leeway_seconds: int = JWT_LEEWAY_SECONDS
 
 
 @dataclass(frozen=True)
@@ -66,21 +72,17 @@ class AuthContext:
 
 
 def get_api_key_hash_secret() -> str:
-    return (
-        os.environ.get("API_KEY_HASH_SECRET")
-        or os.environ.get("AUTH_SECRET")
-        or LOCAL_AUTH_SECRET
-    )
+    auth_config = get_config().auth
+    return auth_config.api_key.hash_secret or auth_config.local_auth_secret
 
 
 def get_jwt_settings() -> JWTSettings:
+    auth_config = get_config().auth
     return JWTSettings(
-        secret=os.environ.get("JWT_SECRET")
-        or os.environ.get("AUTH_SECRET")
-        or LOCAL_AUTH_SECRET,
-        issuer=os.environ.get("JWT_ISSUER", "3rd-eye"),
-        audience=os.environ.get("JWT_AUDIENCE", "3rd-eye-api"),
-        leeway_seconds=int(os.environ.get("JWT_LEEWAY_SECONDS", "0")),
+        secret=auth_config.jwt.secret or auth_config.local_auth_secret,
+        issuer=auth_config.jwt.issuer,
+        audience=auth_config.jwt.audience,
+        leeway_seconds=auth_config.jwt.leeway_seconds,
     )
 
 
@@ -289,4 +291,3 @@ def _base64url_decode(value: str, label: str) -> bytes:
         return base64.urlsafe_b64decode(f"{value}{padding}".encode("ascii"))
     except (ValueError, UnicodeEncodeError) as exc:
         raise AuthUnauthorized(f"Malformed {label}") from exc
-

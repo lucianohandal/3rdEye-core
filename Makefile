@@ -7,7 +7,7 @@ test:
 	$(PYTHON) $(TEST_CMD)
 
 db-test:
-	@test -n "$$TEST_DATABASE_URL" || (echo "Set TEST_DATABASE_URL before running DB integration tests" && exit 1)
+	@$(PYTHON) -c "from configs import get_config; raise SystemExit(0 if get_config(environment='test').database.url else 1)" || (echo "Set TEST_DATABASE_URL or database.url in configs.testing.yaml before running DB integration tests" && exit 1)
 	$(PYTHON) $(TEST_CMD)
 
 coverage:

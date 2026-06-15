@@ -1,0 +1,25 @@
+app:
+  title: "3rd Eye API"
+  version: "0.1.0"
+
+database:
+  url:
+  pool_min_size: 1
+  pool_max_size: 10
+
+auth:
+  local_auth_secret: "3rdeye-test-secret"
+  scopes:
+    logs_read: "logs:read"
+    logs_write: "logs:write"
+  api_key:
+    prefix: "3eye_live_"
+    hash_algorithm: "hmac-sha256"
+    hash_secret:
+    default_scope: "logs:write"
+  jwt:
+    algorithm: "HS256"
+    secret:
+    issuer: "3rd-eye"
+    audience: "3rd-eye-api"
+    leeway_seconds: 0

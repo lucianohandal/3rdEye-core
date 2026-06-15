@@ -1,15 +1,18 @@
-import os
 import unittest
 from pathlib import Path
 from uuid import UUID, uuid4
 
 import asyncpg
 
+from configs import get_config
 from db.PostgresDB import PostgresDB
 
 
-TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
-DB_TEST_SKIP_REASON = "TEST_DATABASE_URL is not set"
+TEST_DATABASE_URL = get_config(environment="test").database.url
+DB_TEST_SKIP_REASON = (
+    "Test database URL is not configured. Set TEST_DATABASE_URL or "
+    "database.url in configs.testing.yaml."
+)
 SCHEMA_PATH = Path(__file__).parents[2] / "db" / "SQL" / "schema.sql"
 
 

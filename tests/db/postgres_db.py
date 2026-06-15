@@ -1,11 +1,61 @@
+import re
 from datetime import date
 import unittest
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 from db.PostgresDB import PostgresDB
 from tests.db.helpers import close_pool, database_test_case, insert_organization, prepare_database
 from util.dto.database.AlertDTO import AlertDTO
 from util.enum.Severity import Severity
+
+
+class _AcquireContext:
+    def __init__(self, conn) -> None:
+        self.conn = conn
+
+    async def __aenter__(self):
+        return self.conn
+
+    async def __aexit__(self, exc_type, exc, traceback) -> None:
+        return None
+
+
+class _Pool:
+    def __init__(self, conn) -> None:
+        self.conn = conn
+
+    def acquire(self) -> _AcquireContext:
+        return _AcquireContext(self.conn)
+
+
+class PostgresDBUpdateManyQueryTestCase(unittest.IsolatedAsyncioTestCase):
+    async def test_updatemany_uses_contiguous_placeholders_for_updated_values(self) -> None:
+        conn = AsyncMock()
+        alert = AlertDTO(
+            org_id=uuid4(),
+            rule_id="updatable_alert",
+            severity=Severity.MEDIUM,
+            message="Initial message",
+            details={"state": "initial"},
+        )
+
+        with patch.object(PostgresDB, "get_pool", AsyncMock(return_value=_Pool(conn))):
+            await PostgresDB().updatemany([alert])
+
+        query, values = conn.executemany.await_args.args
+        placeholder_numbers = sorted(
+            {int(value) for value in re.findall(r"\$(\d+)", query)}
+        )
+
+        self.assertEqual(
+            placeholder_numbers,
+            list(range(1, max(placeholder_numbers) + 1)),
+        )
+        self.assertNotIn("org_id", query)
+        self.assertEqual(values[0][0], alert.id)
+        self.assertEqual(values[0][1], alert.rule_id)
+        self.assertNotIn(alert.org_id, values[0])
 
 
 @database_test_case

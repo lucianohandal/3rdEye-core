@@ -4,10 +4,12 @@ from fastapi import APIRouter, Depends, Response, status
 
 from auth.core import AuthContext
 from auth.dependencies import require_jwt_scope_dependency, require_logs_write_api_key
+from configs import get_config
 from db.PostgresManager import get_rawlogs_db
 from util.dto.api.LogEventDTO import LogEventDTO
 
 router = APIRouter()
+LOGS_READ_SCOPE = get_config().auth.scopes.logs_read
 
 @router.post("/logs")
 async def ingest_logs(
@@ -29,14 +31,14 @@ async def ingest_logs(
 
 @router.get("/search")
 async def search_logs(
-    auth: Annotated[AuthContext, Depends(require_jwt_scope_dependency("logs:read"))],
+    auth: Annotated[AuthContext, Depends(require_jwt_scope_dependency(LOGS_READ_SCOPE))],
 ):
     print(auth.org_id)
     return {"org_id": str(auth.org_id)}
 
 @router.get("/alerts")
 async def get_alerts(
-    auth: Annotated[AuthContext, Depends(require_jwt_scope_dependency("logs:read"))],
+    auth: Annotated[AuthContext, Depends(require_jwt_scope_dependency(LOGS_READ_SCOPE))],
 ):
     print(auth.org_id)
     return {"org_id": str(auth.org_id)}

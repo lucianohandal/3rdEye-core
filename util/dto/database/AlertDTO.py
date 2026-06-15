@@ -1,7 +1,7 @@
 from typing import Any
 
 from pydantic import Field
-from util.dto.DBModel import DBModel
+from util.dto.database.DBModel import DBModel
 from util.enum.Severity import Severity
 
 

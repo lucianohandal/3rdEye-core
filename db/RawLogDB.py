@@ -1,39 +1,44 @@
 from uuid import UUID
 
 from db.PostgresDB import PostgresDB
-from util.dto.LogSignatureDTO import LogSignatureDTO
-from util.dto.RawLogDTO import RawLogDTO
+from util.dto.api.LogEventDTO import LogEventDTO
+from util.dto.database.LogSignatureDTO import LogSignatureDTO
+from util.dto.database.RawLogDTO import RawLogDTO
 
 
 class RawLogDB(PostgresDB):
-    async def insert_raw_logs(self, raw_logs: list[RawLogDTO]) -> None:
-        if not raw_logs:
+    def __init__(self, org_id: UUID) -> None:
+        self.org_id = org_id
+
+    async def insert_raw_logs(self, log_events: list[LogEventDTO]) -> None:
+        if not log_events:
             return None
 
-        signatures = await self.get_log_signatures(raw_logs)
+        signatures = await self.get_log_signatures(log_events)
+        raw_logs = []
         new_signatures = {}
         # TODO: choose closest line if needed
-        for i in range(0, len(raw_logs)):
-            key = raw_logs[i].signature_key()
+        for log_event in log_events:
+            key = log_event.signature_key()
             if key in signatures:
-                raw_logs[i].signature_id = signatures[key]
+                raw_logs.append(RawLogDTO.from_log_event(log_event, self.org_id, signatures[key]))
                 continue
 
-            new_signatures[key] = new_signatures.get(key, LogSignatureDTO.from_raw_logs(raw_logs[i]))
+            new_signatures[key] = new_signatures.get(key, LogSignatureDTO.from_log_event(log_event, self.org_id))
 
-            if raw_logs[i].timestamp < new_signatures[key].first_appearance_timestamp:
-                new_signatures[key].first_appearance_timestamp = raw_logs[i].timestamp
-                new_signatures[key].first_appearance_commit = raw_logs[i].git_sha
+            if log_event.timestamp < new_signatures[key].first_appearance_timestamp:
+                new_signatures[key].first_appearance_timestamp = log_event.timestamp
+                new_signatures[key].first_appearance_commit = log_event.git_sha
 
-            raw_logs[i].signature_id = new_signatures[key].id
+            raw_logs.append(RawLogDTO.from_log_event(log_event, self.org_id, new_signatures[key].id))
 
         await self.insertmany(list(new_signatures.values()))
         await self.updatemany(raw_logs)
         return None
 
-    async def get_log_signatures(self, raw_logs: list[RawLogDTO]) -> dict[tuple[str, str, str, int], UUID]:
-        files = list({raw_log.file for raw_log in raw_logs})
-        templates = list({raw_log.template for raw_log in raw_logs})
+    async def get_log_signatures(self, log_events: list[LogEventDTO]) -> dict[tuple[str, str, str, int], UUID]:
+        files = list({log_event.file for log_event in log_events})
+        templates = list({log_event.template for log_event in log_events})
 
         query = f"""
             SELECT id, template, line, file, method

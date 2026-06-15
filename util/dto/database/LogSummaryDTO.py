@@ -4,13 +4,12 @@ from uuid import UUID
 
 from pydantic import Field
 
-from util.dto.DBModel import DBModel
+from util.dto.database.DBModel import DBModel
 from util.enum.LogWindow import LogWindow
 from util.functions import normalize_counts
 
 
 class LogSummaryDTO(DBModel):
-    id: UUID | None = None
     window: LogWindow
     start_time: datetime
     log_count: int = Field(default=0, ge=0)

@@ -1,9 +1,12 @@
 from pydantic import BaseModel
-
+from uuid import UUID
 from util.functions import to_snake_case
 
 
 class DBModel(BaseModel):
+    id: UUID
+    org_id: UUID
+
     def db_dump(self):
         return self.model_dump(mode="python")
 

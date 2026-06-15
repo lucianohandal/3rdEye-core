@@ -6,7 +6,7 @@ from analysis.models import (
 )
 from analysis.rules import AnalysisRule, load_rules
 from analysis.service import AnalysisService
-from util.dto.AlertDTO import AlertDTO
+from util.dto.database.AlertDTO import AlertDTO
 
 __all__ = [
     "AnalysisEngine",

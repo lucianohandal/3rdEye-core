@@ -4,7 +4,7 @@ from typing import Any, TypeVar
 
 import asyncpg
 
-from util.dto.DBModel import DBModel
+from util.dto.database.DBModel import DBModel
 
 
 TDBModel = TypeVar("TDBModel", bound=DBModel)
@@ -12,9 +12,6 @@ TDBModel = TypeVar("TDBModel", bound=DBModel)
 class PostgresDB:
     DATABASE_URL = os.environ.get("DB_URL", "DB_URL")
     _pool: asyncpg.Pool | None = None
-
-    def __init__(self, org_id: str) -> None:
-        self.org_id = org_id
 
     @staticmethod
     async def get_pool() -> asyncpg.Pool:

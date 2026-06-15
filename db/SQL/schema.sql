@@ -100,13 +100,6 @@ CREATE TABLE IF NOT EXISTS raw_logs (
     request_id VARCHAR(255),
     user_id VARCHAR(255),
 
-    -- Log Signature
-    template TEXT NOT NULL,
-    line SMALLINT NOT NULL,
-    file TEXT NOT NULL,
-    method TEXT NOT NULL,
-    log_level log_level_smallint NOT NULL,
-
     attributes JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 

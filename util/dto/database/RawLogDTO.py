@@ -1,11 +1,11 @@
 from datetime import datetime
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from pydantic import Field
 
-from util.dto.DBModel import DBModel
-from util.enum.LogLevel import LogLevel
+from util.dto.api.LogEventDTO import LogEventDTO
+from util.dto.database.DBModel import DBModel
 
 
 class RawLogDTO(DBModel):
@@ -14,8 +14,6 @@ class RawLogDTO(DBModel):
     stack: str | None = None
 
     # DB Metadata
-    id: UUID | None = None
-    org_id: UUID | None = None
     signature_id: UUID | None = None
 
     # Environment Metadata
@@ -33,17 +31,10 @@ class RawLogDTO(DBModel):
     # Custom Metadata
     attributes: dict[str, Any] = Field(default_factory=dict)
 
-    # Log Signature
-    level: LogLevel
-    template: str = Field(min_length=1, max_length=10_000)
-    file: str = Field(max_length=1_000)
-    line: int = Field(ge=1)
-    method: str = Field(max_length=255)
-
-    def signature_key(self) -> tuple[str, str, str, int]:
-        return (
-            self.file,
-            self.template,
-            self.method,
-            self.line,
-        )
+    @classmethod
+    def from_log_event(cls, log_event: LogEventDTO, org_id: UUID, signature_id: UUID, **overrides: Any) -> "RawLogDTO":
+        data = log_event.model_dump()
+        data.update(overrides)
+        data["id"] = uuid4()
+        data["org_id"] = org_id
+        return cls.model_validate(data)

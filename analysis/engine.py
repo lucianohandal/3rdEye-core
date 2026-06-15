@@ -3,8 +3,8 @@ from math import isfinite
 
 from analysis.models import BaselineSnapshot
 from analysis.rules import AnalysisRule, RuleCondition
-from util.dto.AlertDTO import AlertDTO
-from util.dto.LogSummaryDTO import LogSummaryDTO
+from util.dto.database.AlertDTO import AlertDTO
+from util.dto.database.LogSummaryDTO import LogSummaryDTO
 from util.enum.LogWindow import LogWindow
 from util.enum.RuleConditionType import RuleConditionType
 

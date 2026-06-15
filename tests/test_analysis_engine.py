@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from analysis.engine import AnalysisEngine
 from analysis.models import BaselineSnapshot, ExpectedPattern, MetricBaseline
 from analysis.rules import AnalysisRule, load_rules
-from util.dto.LogSummaryDTO import LogSummaryDTO
+from util.dto.database.LogSummaryDTO import LogSummaryDTO
 from util.enum.Severity import Severity
 
 

@@ -1,10 +1,11 @@
 from db.PostgresDB import PostgresDB
-from util.dto.LogSummaryDTO import LogSummaryDTO
+from util.dto.database.AlertDTO import AlertDTO
+from util.dto.database.LogSummaryDTO import LogSummaryDTO
 from util.enum.LogLevel import LogLevel
 from util.enum.LogWindow import LogWindow
 
 
-class LogSummaryDB(PostgresDB):
+class AnalysisDB(PostgresDB):
     async def get_log_summaries(self, window: LogWindow) -> list[LogSummaryDTO]:
         query = """
             WITH claimed AS (
@@ -87,4 +88,8 @@ class LogSummaryDB(PostgresDB):
             self.org_id,
             summary_ids,
         )
+        return None
+
+    async def submit_alerts(self, alerts: list[AlertDTO]) -> None:
+        await self.insertmany(alerts)
         return None

@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Response, status
 
-from db.RawLogDB import RawLogDB
-from util.dto.RawLogDTO import RawLogDTO
+from db.PostgresManager import get_rawlogs_db
+from util.dto.api.LogEventDTO import LogEventDTO
 
 router = APIRouter()
 
 @router.post("/logs")
-async def ingest_logs(log_events: list[RawLogDTO], response: Response):
+async def ingest_logs(log_events: list[LogEventDTO], response: Response):
     if not log_events:
         response.status_code = status.HTTP_204_NO_CONTENT
         return None
@@ -16,7 +16,7 @@ async def ingest_logs(log_events: list[RawLogDTO], response: Response):
 
     #TODO: authorize api_key_id
 
-    db = RawLogDB(org_id)
+    db = get_rawlogs_db(org_id)
     await db.insert_raw_logs(log_events)
 
     response.status_code = status.HTTP_202_ACCEPTED
